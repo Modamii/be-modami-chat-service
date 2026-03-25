@@ -16,8 +16,7 @@ const (
 	TopicMessagesUpdated = "chat.messages.updated"
 	TopicMessagesDeleted = "chat.messages.deleted"
 	TopicReadReceipts    = "chat.read_receipts"
-	TopicTyping          = "chat.typing"
-	TopicReactions       = "chat.reactions"
+	TopicReactions = "chat.reactions"
 )
 
 // Producer implements service.EventPublisher using Kafka via franz-go.
@@ -85,15 +84,6 @@ func (p *Producer) PublishReadReceipt(ctx context.Context, conversationID, userI
 		"message_id":      messageID,
 	}
 	return p.publish(ctx, TopicReadReceipts, conversationID, "read_receipt", payload)
-}
-
-func (p *Producer) PublishTypingIndicator(ctx context.Context, conversationID, userID string, typing bool) error {
-	payload := map[string]interface{}{
-		"conversation_id": conversationID,
-		"user_id":         userID,
-		"typing":          typing,
-	}
-	return p.publish(ctx, TopicTyping, conversationID, "typing", payload)
 }
 
 func (p *Producer) PublishReactionAdded(ctx context.Context, conversationID, messageID, emoji, userID string) error {

@@ -13,7 +13,6 @@ type MessageRepository interface {
 	FindByID(ctx context.Context, id string) (*domain.Message, error)
 	FindByConversation(ctx context.Context, conversationID string, page domain.PageRequest) (*domain.PageResponse[*domain.Message], error)
 	Update(ctx context.Context, msg *domain.Message) error
-	Exists(ctx context.Context, id string) (bool, error)
 	AddReaction(ctx context.Context, messageID, emoji, userID string) error
 	RemoveReaction(ctx context.Context, messageID, emoji, userID string) error
 }
@@ -37,7 +36,6 @@ type EventPublisher interface {
 	PublishMessageUpdated(ctx context.Context, msg *domain.Message) error
 	PublishMessageDeleted(ctx context.Context, conversationID, messageID, senderID string) error
 	PublishReadReceipt(ctx context.Context, conversationID, userID, messageID string) error
-	PublishTypingIndicator(ctx context.Context, conversationID, userID string, typing bool) error
 	PublishReactionAdded(ctx context.Context, conversationID, messageID, emoji, userID string) error
 	PublishReactionRemoved(ctx context.Context, conversationID, messageID, emoji, userID string) error
 }
@@ -53,9 +51,6 @@ type CacheStore interface {
 	IncrementUnread(ctx context.Context, userID, conversationID string) error
 	ClearUnread(ctx context.Context, userID, conversationID string) error
 	GetUnreadCounts(ctx context.Context, userID string) (map[string]int64, error)
-	SetConversationMeta(ctx context.Context, conv *domain.Conversation) error
-	GetConversationMeta(ctx context.Context, conversationID string) (*domain.Conversation, error)
-	InvalidateConversationMeta(ctx context.Context, conversationID string) error
 }
 
 // PresenceStore manages user presence and typing indicators.

@@ -2,18 +2,13 @@ package redis
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"time"
 
-	"be-modami-chat-service/internal/domain"
 	"github.com/redis/go-redis/v9"
 )
 
 const (
-	unreadPrefix   = "chat:unread:"
-	convMetaPrefix = "chat:conv_meta:"
-	convMetaTTL    = 30 * time.Minute
+	unreadPrefix = "chat:unread:"
 )
 
 // CacheStore implements service.CacheStore using Redis.
@@ -56,41 +51,4 @@ func (s *CacheStore) GetUnreadCounts(ctx context.Context, userID string) (map[st
 		counts[convID] = count
 	}
 	return counts, nil
-}
-
-func (s *CacheStore) SetConversationMeta(ctx context.Context, conv *domain.Conversation) error {
-	key := convMetaPrefix + conv.ID
-	data, err := json.Marshal(conv)
-	if err != nil {
-		return fmt.Errorf("marshal conversation meta: %w", err)
-	}
-	if err := s.client.Set(ctx, key, data, convMetaTTL).Err(); err != nil {
-		return fmt.Errorf("set conversation meta: %w", err)
-	}
-	return nil
-}
-
-func (s *CacheStore) GetConversationMeta(ctx context.Context, conversationID string) (*domain.Conversation, error) {
-	key := convMetaPrefix + conversationID
-	data, err := s.client.Get(ctx, key).Bytes()
-	if err != nil {
-		if err == redis.Nil {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("get conversation meta: %w", err)
-	}
-
-	var conv domain.Conversation
-	if err := json.Unmarshal(data, &conv); err != nil {
-		return nil, fmt.Errorf("unmarshal conversation meta: %w", err)
-	}
-	return &conv, nil
-}
-
-func (s *CacheStore) InvalidateConversationMeta(ctx context.Context, conversationID string) error {
-	key := convMetaPrefix + conversationID
-	if err := s.client.Del(ctx, key).Err(); err != nil {
-		return fmt.Errorf("invalidate conversation meta: %w", err)
-	}
-	return nil
 }

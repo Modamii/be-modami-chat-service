@@ -56,7 +56,7 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
 
       - name: Build binary
-        run: CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/chat-service ./cmd/chat-service
+        run: CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/chat-service ./cmd/
 
       - name: Upload binary
         uses: actions/upload-artifact@v4

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go mod:*)",
+      "Bash(go get:*)",
+      "Bash(go build:*)",
+      "Bash(sed -i 's/^package usecase$/package service/' internal/service/*.go)",
+      "Bash(sed -i 's|be-modami-chat-service/internal/chat/domain|be-modami-chat-service/internal/domain|g' internal/service/*.go)",
+      "Bash(go vet:*)"
+    ]
+  }
+}

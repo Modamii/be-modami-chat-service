@@ -27,7 +27,7 @@ lint:
 
 # Start infrastructure services
 infra:
-	docker compose -f deployments/docker/docker-compose.yaml up -d mongodb redis kafka centrifugo minio
+	docker compose -f deployments/docker/docker-compose.yaml up -d mongodb redis kafka centrifugo
 
 # Stop infrastructure services
 infra-down:
