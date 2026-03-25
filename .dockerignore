@@ -1,0 +1,11 @@
+.git
+.github
+.vscode
+.idea
+bin/
+coverage.out
+coverage.html
+*.md
+.air.toml
+.golangci.yml
+deployments/

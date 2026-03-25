@@ -1,0 +1,37 @@
+{
+  "token_hmac_secret_key": "your-secret-key-change-in-production",
+  "api_key": "centrifugo-api-key",
+  "admin": true,
+  "admin_password": "admin",
+  "admin_secret": "admin-secret",
+  "allowed_origins": ["http://localhost:3000"],
+  "channel": {
+    "namespaces": [
+      {
+        "name": "chat",
+        "history_size": 50,
+        "history_ttl": "7200s",
+        "force_recovery": true,
+        "force_positioning": true,
+        "allow_subscribe_for_client": true
+      },
+      {
+        "name": "dm",
+        "allow_user_limited_channels": true,
+        "history_size": 50,
+        "history_ttl": "7200s",
+        "force_recovery": true
+      },
+      {
+        "name": "personal",
+        "allow_user_limited_channels": true
+      },
+      {
+        "name": "presence",
+        "presence": true,
+        "join_leave": true,
+        "force_push_join_leave": true
+      }
+    ]
+  }
+}

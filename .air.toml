@@ -1,0 +1,19 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  bin = "./tmp/chat-service"
+  cmd = "go build -o ./tmp/chat-service ./cmd/"
+  delay = 1000
+  exclude_dir = ["tmp", "bin", "vendor", "node_modules", "pkg/kafka", "pkg/storage"]
+  exclude_regex = ["_test\\.go$"]
+  include_ext = ["go", "yaml"]
+  kill_delay = "0s"
+  send_interrupt = false
+  stop_on_error = true
+
+[log]
+  time = false
+
+[misc]
+  clean_on_exit = true

@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package chat;
+
+option go_package = "be-modami-chat-service/api/proto/chatpb";
+
+import "google/protobuf/timestamp.proto";
+
+// ChatEventEnvelope wraps all chat events with metadata.
+message ChatEventEnvelope {
+    string event_id = 1;
+    string event_type = 2;
+    google.protobuf.Timestamp timestamp = 3;
+    string trace_id = 4;
+
+    oneof payload {
+        MessageEvent message_event = 10;
+        PresenceEvent presence_event = 11;
+        TypingEvent typing_event = 12;
+        ReadReceiptEvent read_receipt = 13;
+        ReactionEvent reaction_event = 14;
+    }
+}
+
+// MessageEvent represents a new or updated message.
+message MessageEvent {
+    string message_id = 1;
+    string conversation_id = 2;
+    string sender_id = 3;
+    string type = 4;
+    MessageContent content = 5;
+    MediaInfo media = 6;
+    ReplyInfo reply_to = 7;
+    google.protobuf.Timestamp created_at = 8;
+    bool edited = 9;
+    bool deleted = 10;
+}
+
+message MessageContent {
+    string text = 1;
+    repeated string mentions = 2;
+}
+
+message MediaInfo {
+    string url = 1;
+    string thumbnail_url = 2;
+    string mime_type = 3;
+    int64 file_size = 4;
+    string file_name = 5;
+    int32 width = 6;
+    int32 height = 7;
+}
+
+message ReplyInfo {
+    string message_id = 1;
+    string sender_id = 2;
+    string content_preview = 3;
+}
+
+// PresenceEvent represents an online/offline status change.
+message PresenceEvent {
+    string user_id = 1;
+    string status = 2; // "online", "offline", "away"
+    google.protobuf.Timestamp last_seen = 3;
+}
+
+// TypingEvent represents a typing indicator.
+message TypingEvent {
+    string conversation_id = 1;
+    string user_id = 2;
+    bool typing = 3;
+}
+
+// ReadReceiptEvent represents a read receipt.
+message ReadReceiptEvent {
+    string conversation_id = 1;
+    string user_id = 2;
+    string message_id = 3;
+    google.protobuf.Timestamp read_at = 4;
+}
+
+// ReactionEvent represents a reaction add/remove.
+message ReactionEvent {
+    string conversation_id = 1;
+    string message_id = 2;
+    string user_id = 3;
+    string emoji = 4;
+    string action = 5; // "added" or "removed"
+}
