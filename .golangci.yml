@@ -2,7 +2,6 @@ run:
   timeout: 5m
   modules-download-mode: readonly
   skip-dirs:
-    - pkg/kafka
     - pkg/storage
 
 linters:
@@ -29,7 +28,6 @@ linters-settings:
 
 issues:
   exclude-dirs:
-    - pkg/kafka
     - pkg/storage
   max-issues-per-linter: 50
   max-same-issues: 5

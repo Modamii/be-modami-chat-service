@@ -63,26 +63,26 @@ services:
       redis:
         condition: service_healthy
 
-  chat-service:
-    build:
-      context: ../..
-      dockerfile: deployments/docker/Dockerfile
-    ports:
-      - "8080:8080"
-    environment:
-      CHAT_CONFIG_PATH: /app/configs/config-docker.yaml
-    networks:
-      - chat-net
-    depends_on:
-      mongodb:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    volumes:
-      - ../../configs:/app/configs:ro
-    restart: unless-stopped
+  # chat-service:
+  #   build:
+  #     context: ../..
+  #     dockerfile: deployments/docker/Dockerfile
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     CHAT_CONFIG_PATH: /app/configs/config-docker.yaml
+  #   networks:
+  #     - chat-net
+  #   depends_on:
+  #     mongodb:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #     kafka:
+  #       condition: service_healthy
+  #   volumes:
+  #     - ../../configs:/app/configs:ro
+  #   restart: unless-stopped
 
 networks:
   chat-net:
