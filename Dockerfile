@@ -1,31 +1,56 @@
 # Build stage
-FROM golang:1.25-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS builder
 
-RUN apk add --no-cache git ca-certificates
+RUN apk add --no-cache git ca-certificates tzdata
 
 WORKDIR /app
 
-# Cache dependencies
+ARG TARGETOS TARGETARCH
+
 COPY go.mod go.sum ./
-RUN go mod download
 
-# Build binary
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=secret,id=gitlab_username,required=false \
+    --mount=type=secret,id=gitlab_token,required=false \
+    set -e; \
+    if [ -f /run/secrets/gitlab_username ] && [ -f /run/secrets/gitlab_token ]; then \
+        GITLAB_USERNAME="$(cat /run/secrets/gitlab_username)"; \
+        GITLAB_TOKEN="$(cat /run/secrets/gitlab_token)"; \
+        echo "Configuring GitLab private repo access"; \
+        printf "machine gitlab.com\nlogin %s\npassword %s\n" \
+          "$GITLAB_USERNAME" "$GITLAB_TOKEN" > ~/.netrc; \
+        chmod 600 ~/.netrc; \
+        git config --global url."https://${GITLAB_USERNAME}:${GITLAB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"; \
+        go env -w GOPRIVATE=gitlab.com/lifegoeson-libs/* && \
+        go env -w GONOPROXY=gitlab.com/lifegoeson-libs/* && \
+        go env -w GONOSUMDB=gitlab.com/lifegoeson-libs/*; \
+    else \
+        echo "No GitLab credentials, skipping private repo setup"; \
+    fi; \
+    go mod download
+
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags="-s -w -X main.version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)" \
-    -o /chat-service ./cmd/
 
-# Runtime stage
-FROM alpine:3.21
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
+    -ldflags="-w -s" \
+    -o main ./cmd/api
 
-RUN apk add --no-cache ca-certificates tzdata curl
+    
+# Final stage
+FROM alpine:latest
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN apk --no-cache add ca-certificates tzdata wget
+
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
 
 WORKDIR /app
 
-COPY --from=builder /chat-service .
-COPY configs/ ./configs/
+COPY --from=builder /app/main .
+COPY --from=builder /app/configs ./configs
+COPY --from=builder /app/.env* ./
 
 RUN chown -R appuser:appgroup /app
 
@@ -33,7 +58,7 @@ USER appuser
 
 EXPOSE 8080
 
-HEALTHCHECK --interval=15s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
-ENTRYPOINT ["./chat-service"]
+CMD ["./main"]
