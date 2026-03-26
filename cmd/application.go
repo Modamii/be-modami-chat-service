@@ -8,12 +8,13 @@ import (
 
 	chathttp "be-modami-chat-service/internal/delivery/http"
 	"be-modami-chat-service/internal/delivery/http/middleware"
-	kafkagw "be-modami-chat-service/internal/gateway/kafka"
+	chatkafka "be-modami-chat-service/internal/kafka"
 	"be-modami-chat-service/internal/service"
 	mongorepo "be-modami-chat-service/internal/store/mongo"
 	redisstore "be-modami-chat-service/internal/store/redis"
 	"be-modami-chat-service/configs"
 	"be-modami-chat-service/pkg/jwt"
+	"be-modami-chat-service/pkg/kafka/events"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -24,7 +25,7 @@ import (
 
 type Application struct {
 	HTTPServer      *http.Server
-	MessageConsumer *kafkagw.Consumer
+	MessageConsumer *chatkafka.Consumer
 	PresenceStore   *redisstore.PresenceStore
 }
 
@@ -52,7 +53,6 @@ func NewApplication(ctx context.Context, cfg *config.Config, conn *Connections) 
 		rateLimiter,
 		conn.IDGen,
 	)
-
 
 	// HTTP server
 	jwtService := jwt.NewService(cfg.JWT.Secret, cfg.JWT.Expiration)
@@ -107,12 +107,12 @@ func NewApplication(ctx context.Context, cfg *config.Config, conn *Connections) 
 	}
 
 	// Kafka consumer
-	messageConsumer, err := kafkagw.NewConsumer(
+	messageConsumer, err := chatkafka.NewConsumer(
 		cfg.Kafka.Brokers,
 		cfg.Kafka.ConsumerGroup,
-		[]string{kafkagw.TopicMessagesInbound},
+		[]string{events.TopicMessagesInbound},
 		func(ctx context.Context, record *kgo.Record) error {
-			envelope, err := kafkagw.DecodeEnvelope(record.Value)
+			envelope, err := events.DecodeEnvelope(record.Value)
 			if err != nil {
 				return err
 			}

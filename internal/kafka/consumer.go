@@ -11,7 +11,7 @@ import (
 // MessageHandler processes a single Kafka record.
 type MessageHandler func(ctx context.Context, record *kgo.Record) error
 
-// Consumer is a simple Kafka consumer using franz-go.
+// Consumer is a Kafka consumer for chat service topics.
 type Consumer struct {
 	client  *kgo.Client
 	handler MessageHandler

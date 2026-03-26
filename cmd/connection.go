@@ -8,17 +8,17 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	"be-modami-chat-service/pkg/utils"
-	"be-modami-chat-service/internal/gateway/centrifugo"
-	kafkagw "be-modami-chat-service/internal/gateway/kafka"
 	"be-modami-chat-service/configs"
+	chatkafka "be-modami-chat-service/internal/kafka"
+	"be-modami-chat-service/pkg/centrifugo"
+	"be-modami-chat-service/pkg/utils"
 )
 
 type Connections struct {
 	MongoClient         *mongo.Client
 	MongoDB             *mongo.Database
 	RedisClient         *redis.Client
-	KafkaProducer       *kafkagw.Producer
+	KafkaProducer       *chatkafka.Producer
 	CentrifugoPublisher *centrifugo.Publisher
 	IDGen               *utils.ObjectIDGenerator
 }
@@ -53,7 +53,7 @@ func NewConnections(ctx context.Context, cfg *config.Config) *Connections {
 
 	// Kafka producer
 	idGen := &utils.ObjectIDGenerator{}
-	kafkaProducer, err := kafkagw.NewProducer(cfg.Kafka.Brokers, idGen.NewID)
+	kafkaProducer, err := chatkafka.NewProducer(cfg.Kafka.Brokers, idGen.NewID)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create kafka producer")
 	}

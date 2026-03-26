@@ -1,4 +1,4 @@
-package kafka
+package events
 
 import (
 	"encoding/json"
@@ -14,7 +14,8 @@ type Envelope struct {
 	CreatedAt time.Time       `json:"created_at"`
 }
 
-func newEnvelope(eventType string, payload interface{}, idFunc func() string) (*Envelope, []byte, error) {
+// NewEnvelope creates an Envelope, marshals it to bytes, and returns both.
+func NewEnvelope(eventType string, payload interface{}, idFunc func() string) (*Envelope, []byte, error) {
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return nil, nil, fmt.Errorf("marshal payload: %w", err)

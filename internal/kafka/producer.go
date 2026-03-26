@@ -5,18 +5,9 @@ import (
 	"fmt"
 
 	"be-modami-chat-service/internal/domain"
+	"be-modami-chat-service/pkg/kafka/events"
 
 	"github.com/twmb/franz-go/pkg/kgo"
-)
-
-// Topic constants for the chat service.
-const (
-	TopicMessagesInbound = "chat.messages.inbound"
-	TopicMessagesSent    = "chat.messages.sent"
-	TopicMessagesUpdated = "chat.messages.updated"
-	TopicMessagesDeleted = "chat.messages.deleted"
-	TopicReadReceipts    = "chat.read_receipts"
-	TopicReactions = "chat.reactions"
 )
 
 // Producer implements service.EventPublisher using Kafka via franz-go.
@@ -43,7 +34,7 @@ func (p *Producer) Close() {
 }
 
 func (p *Producer) publish(ctx context.Context, topic string, key string, eventType string, payload interface{}) error {
-	_, encoded, err := newEnvelope(eventType, payload, p.idFunc)
+	_, encoded, err := events.NewEnvelope(eventType, payload, p.idFunc)
 	if err != nil {
 		return err
 	}
@@ -61,47 +52,60 @@ func (p *Producer) publish(ctx context.Context, topic string, key string, eventT
 }
 
 func (p *Producer) PublishMessageSent(ctx context.Context, msg *domain.Message) error {
-	return p.publish(ctx, TopicMessagesSent, msg.ConversationID, "message.sent", msg)
+	event := events.MessageSentEvent{
+		ConversationID: msg.ConversationID,
+		MessageID:      msg.ID,
+		SenderID:       msg.SenderID,
+		Type:           string(msg.Type),
+		Text:           msg.Content.Text,
+	}
+	return p.publish(ctx, events.TopicMessagesSent, msg.ConversationID, "message.sent", event)
 }
 
 func (p *Producer) PublishMessageUpdated(ctx context.Context, msg *domain.Message) error {
-	return p.publish(ctx, TopicMessagesUpdated, msg.ConversationID, "message.updated", msg)
+	event := events.MessageUpdatedEvent{
+		ConversationID: msg.ConversationID,
+		MessageID:      msg.ID,
+		SenderID:       msg.SenderID,
+		Text:           msg.Content.Text,
+	}
+	return p.publish(ctx, events.TopicMessagesUpdated, msg.ConversationID, "message.updated", event)
 }
 
 func (p *Producer) PublishMessageDeleted(ctx context.Context, conversationID, messageID, senderID string) error {
-	payload := map[string]string{
-		"conversation_id": conversationID,
-		"message_id":      messageID,
-		"sender_id":       senderID,
+	event := events.MessageDeletedEvent{
+		ConversationID: conversationID,
+		MessageID:      messageID,
+		SenderID:       senderID,
 	}
-	return p.publish(ctx, TopicMessagesDeleted, conversationID, "message.deleted", payload)
+	return p.publish(ctx, events.TopicMessagesDeleted, conversationID, "message.deleted", event)
 }
 
 func (p *Producer) PublishReadReceipt(ctx context.Context, conversationID, userID, messageID string) error {
-	payload := map[string]string{
-		"conversation_id": conversationID,
-		"user_id":         userID,
-		"message_id":      messageID,
+	event := events.ReadReceiptEvent{
+		ConversationID: conversationID,
+		UserID:         userID,
+		MessageID:      messageID,
 	}
-	return p.publish(ctx, TopicReadReceipts, conversationID, "read_receipt", payload)
+	return p.publish(ctx, events.TopicReadReceipts, conversationID, "read_receipt", event)
 }
 
 func (p *Producer) PublishReactionAdded(ctx context.Context, conversationID, messageID, emoji, userID string) error {
-	payload := map[string]string{
-		"conversation_id": conversationID,
-		"message_id":      messageID,
-		"emoji":           emoji,
-		"user_id":         userID,
+	event := events.ReactionEvent{
+		ConversationID: conversationID,
+		MessageID:      messageID,
+		Emoji:          emoji,
+		UserID:         userID,
 	}
-	return p.publish(ctx, TopicReactions, conversationID, "reaction.added", payload)
+	return p.publish(ctx, events.TopicReactions, conversationID, "reaction.added", event)
 }
 
 func (p *Producer) PublishReactionRemoved(ctx context.Context, conversationID, messageID, emoji, userID string) error {
-	payload := map[string]string{
-		"conversation_id": conversationID,
-		"message_id":      messageID,
-		"emoji":           emoji,
-		"user_id":         userID,
+	event := events.ReactionEvent{
+		ConversationID: conversationID,
+		MessageID:      messageID,
+		Emoji:          emoji,
+		UserID:         userID,
 	}
-	return p.publish(ctx, TopicReactions, conversationID, "reaction.removed", payload)
+	return p.publish(ctx, events.TopicReactions, conversationID, "reaction.removed", event)
 }

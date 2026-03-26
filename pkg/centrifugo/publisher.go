@@ -4,23 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	pkgcentrifugo "be-modami-chat-service/pkg/centrifugo"
 )
 
 // Publisher implements service.RealtimePublisher using Centrifugo.
 type Publisher struct {
-	client *pkgcentrifugo.Client
+	client *Client
 }
 
 // NewPublisher creates a new Centrifugo publisher.
-func NewPublisher(client *pkgcentrifugo.Client) *Publisher {
+func NewPublisher(client *Client) *Publisher {
 	return &Publisher{client: client}
-}
-
-// NewClient creates a new Centrifugo API client (convenience wrapper).
-func NewClient(apiURL, apiKey string) *pkgcentrifugo.Client {
-	return pkgcentrifugo.NewClient(apiURL, apiKey)
 }
 
 type realtimeEvent struct {
