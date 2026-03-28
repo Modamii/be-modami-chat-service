@@ -35,7 +35,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
     -ldflags="-w -s" \
-    -o main ./cmd/api
+    -o main ./cmd/server
 
     
 # Final stage
@@ -49,7 +49,7 @@ RUN addgroup -g 1001 -S appgroup && \
 WORKDIR /app
 
 COPY --from=builder /app/main .
-COPY --from=builder /app/configs ./configs
+COPY --from=builder /app/config ./config
 COPY --from=builder /app/.env* ./
 
 RUN chown -R appuser:appgroup /app

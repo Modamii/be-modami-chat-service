@@ -1,0 +1,133 @@
+stages:
+  - build
+  - security
+  - release
+
+variables:
+  DOCKER_IMAGE: "lifegoeson34/be-modami-chat-service"
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  GOFLAGS: "-mod=mod"
+
+# ─── BUILD & TEST ────────────────────────────────────────────────────────────
+
+build:
+  stage: build
+  image: golang:1.25-alpine
+  before_script:
+    - apk add --no-cache git
+    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
+    - go env -w GOPRIVATE=gitlab.com/lifegoeson-libs/*
+    - go env -w GONOSUMDB=gitlab.com/lifegoeson-libs/*
+    - go env -w GONOPROXY=gitlab.com/lifegoeson-libs/*
+  script:
+    - go mod download
+    - go build -v ./...
+    - go test -v ./...
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# ─── SECURITY ────────────────────────────────────────────────────────────────
+
+trivy-scan:
+  stage: security
+  image:
+    name: ghcr.io/aquasecurity/trivy:latest
+    entrypoint: [""]
+  script:
+    - trivy fs --format table -o fs-report.json --exit-code 0 .
+  artifacts:
+    name: trivy-report
+    paths:
+      - fs-report.json
+    when: always
+    expire_in: 7 days
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+gitleaks-scan:
+  stage: security
+  image:
+    name: zricethezav/gitleaks:latest
+    entrypoint: [""]
+  script:
+    - |
+      gitleaks detect \
+        --source . \
+        --report-path gitleaks-report.json \
+        --report-format json \
+        --verbose \
+        --no-git || EXIT_CODE=$?
+
+      echo "=========================================="
+      echo "GITLEAKS SECRET SCAN RESULTS"
+      echo "=========================================="
+
+      if [ -f gitleaks-report.json ]; then
+        cat gitleaks-report.json | python3 -c "
+      import json,sys
+      data = json.load(sys.stdin)
+      for item in data:
+          print('━' * 42)
+          print(f'LEAK FOUND!')
+          print(f'File: {item.get(\"File\",\"\")}')
+          print(f'Line: {item.get(\"StartLine\",\"\")}')
+          print(f'Rule: {item.get(\"RuleID\",\"\")}')
+          print(f'Match: {item.get(\"Match\",\"\")}')
+          print('━' * 42)
+      " 2>/dev/null || cat gitleaks-report.json
+      fi
+
+      exit ${EXIT_CODE:-0}
+  artifacts:
+    name: gitleaks-report
+    paths:
+      - gitleaks-report.json
+    when: always
+    expire_in: 7 days
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# ─── RELEASE ─────────────────────────────────────────────────────────────────
+
+docker-build-push:
+  stage: release
+  image: docker:24
+  services:
+    - name: docker:24-dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+  before_script:
+    - |
+      if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+        echo "ERROR: DOCKERHUB_USERNAME or DOCKERHUB_TOKEN is not set."
+        echo "Go to GitLab > Settings > CI/CD > Variables and add them."
+        exit 1
+      fi
+    - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+  script:
+    - IMAGE_TAG="v1.0.$(echo $CI_COMMIT_SHA | cut -c1-7)"
+    - echo "Building image $DOCKER_IMAGE:$IMAGE_TAG"
+    - |
+      DOCKER_BUILDKIT=1 docker build \
+        --build-arg BUILDPLATFORM=linux/amd64 \
+        --build-arg TARGETOS=linux \
+        --build-arg TARGETARCH=amd64 \
+        --secret id=gitlab_username,env=GITLAB_CI_USERNAME \
+        --secret id=gitlab_token,env=CI_JOB_TOKEN \
+        -t "$DOCKER_IMAGE:latest" \
+        -t "$DOCKER_IMAGE:$IMAGE_TAG" \
+        .
+    - docker push "$DOCKER_IMAGE:latest"
+    - docker push "$DOCKER_IMAGE:$IMAGE_TAG"
+    - echo "Pushed $DOCKER_IMAGE:$IMAGE_TAG"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+  needs:
+    - build
+    - trivy-scan
+    - gitleaks-scan
