@@ -7,32 +7,34 @@ import (
 	"time"
 
 	"be-modami-chat-service/internal/domain"
+	"be-modami-chat-service/internal/port"
 
-	"github.com/rs/zerolog/log"
+	logging "gitlab.com/lifegoeson-libs/pkg-logging"
+	"gitlab.com/lifegoeson-libs/pkg-logging/logger"
 )
 
 // ChatService orchestrates chat business logic.
 type ChatService struct {
-	msgRepo     MessageRepository
-	convRepo    ConversationRepository
-	publisher   EventPublisher
-	realtime    RealtimePublisher
-	cache       CacheStore
-	presence    PresenceStore
-	rateLimiter RateLimiter
-	idGen       IDGenerator
+	msgRepo     port.MessageRepository
+	convRepo    port.ConversationRepository
+	publisher   port.EventPublisher
+	realtime    port.RealtimePublisher
+	cache       port.CacheStore
+	presence    port.PresenceStore
+	rateLimiter port.RateLimiter
+	idGen       port.IDGenerator
 }
 
 // NewChatService creates a ChatService with injected dependencies.
 func NewChatService(
-	msgRepo MessageRepository,
-	convRepo ConversationRepository,
-	publisher EventPublisher,
-	realtime RealtimePublisher,
-	cache CacheStore,
-	presence PresenceStore,
-	rateLimiter RateLimiter,
-	idGen IDGenerator,
+	msgRepo port.MessageRepository,
+	convRepo port.ConversationRepository,
+	publisher port.EventPublisher,
+	realtime port.RealtimePublisher,
+	cache port.CacheStore,
+	presence port.PresenceStore,
+	rateLimiter port.RateLimiter,
+	idGen port.IDGenerator,
 ) *ChatService {
 	return &ChatService{
 		msgRepo:     msgRepo,
@@ -104,12 +106,12 @@ func (s *ChatService) MarkAsRead(ctx context.Context, conversationID, userID, me
 
 	// Clear unread count in cache
 	if err := s.cache.ClearUnread(ctx, userID, conversationID); err != nil {
-		log.Error().Err(err).Str("user_id", userID).Msg("failed to clear unread cache")
+		logger.Error(ctx, "failed to clear unread cache", err, logging.String("user_id", userID))
 	}
 
 	// Publish read receipt event
 	if err := s.publisher.PublishReadReceipt(ctx, conversationID, userID, messageID); err != nil {
-		log.Error().Err(err).Msg("failed to publish read receipt")
+		logger.Error(ctx, "failed to publish read receipt", err)
 	}
 
 	// Push read receipt to conversation members via Centrifugo
@@ -117,7 +119,7 @@ func (s *ChatService) MarkAsRead(ctx context.Context, conversationID, userID, me
 		"user_id":    userID,
 		"message_id": messageID,
 	}); err != nil {
-		log.Error().Err(err).Msg("failed to publish realtime read receipt")
+		logger.Error(ctx, "failed to publish realtime read receipt", err)
 	}
 
 	return nil
@@ -150,7 +152,11 @@ func (s *ChatService) EditMessage(ctx context.Context, messageID, userID, newTex
 	}
 
 	if err := s.publisher.PublishMessageUpdated(ctx, msg); err != nil {
-		log.Error().Err(err).Str("msg_id", msg.ID).Msg("failed to publish message update")
+		logger.Error(ctx, "failed to publish message update", err, logging.String("msg_id", msg.ID))
+	}
+
+	if err := s.realtime.PublishToConversation(ctx, msg.ConversationID, "message.updated", msg); err != nil {
+		logger.Error(ctx, "failed to publish realtime message update", err, logging.String("msg_id", msg.ID))
 	}
 
 	return msg, nil
@@ -175,7 +181,14 @@ func (s *ChatService) DeleteMessage(ctx context.Context, messageID, userID strin
 	}
 
 	if err := s.publisher.PublishMessageDeleted(ctx, msg.ConversationID, msg.ID, userID); err != nil {
-		log.Error().Err(err).Str("msg_id", msg.ID).Msg("failed to publish message deletion")
+		logger.Error(ctx, "failed to publish message deletion", err, logging.String("msg_id", msg.ID))
+	}
+
+	if err := s.realtime.PublishToConversation(ctx, msg.ConversationID, "message.deleted", map[string]string{
+		"message_id":      msg.ID,
+		"conversation_id": msg.ConversationID,
+	}); err != nil {
+		logger.Error(ctx, "failed to publish realtime message deletion", err, logging.String("msg_id", msg.ID))
 	}
 
 	return nil
@@ -205,7 +218,15 @@ func (s *ChatService) AddReaction(ctx context.Context, messageID, userID, emoji 
 	}
 
 	if err := s.publisher.PublishReactionAdded(ctx, msg.ConversationID, messageID, emoji, userID); err != nil {
-		log.Error().Err(err).Msg("failed to publish reaction event")
+		logger.Error(ctx, "failed to publish reaction event", err)
+	}
+
+	if err := s.realtime.PublishToConversation(ctx, msg.ConversationID, "reaction.added", map[string]string{
+		"message_id": messageID,
+		"user_id":    userID,
+		"emoji":      emoji,
+	}); err != nil {
+		logger.Error(ctx, "failed to publish realtime reaction", err)
 	}
 
 	return nil
@@ -223,7 +244,15 @@ func (s *ChatService) RemoveReaction(ctx context.Context, messageID, userID, emo
 	}
 
 	if err := s.publisher.PublishReactionRemoved(ctx, msg.ConversationID, messageID, emoji, userID); err != nil {
-		log.Error().Err(err).Msg("failed to publish reaction removal")
+		logger.Error(ctx, "failed to publish reaction removal", err)
+	}
+
+	if err := s.realtime.PublishToConversation(ctx, msg.ConversationID, "reaction.removed", map[string]string{
+		"message_id": messageID,
+		"user_id":    userID,
+		"emoji":      emoji,
+	}); err != nil {
+		logger.Error(ctx, "failed to publish realtime reaction removal", err)
 	}
 
 	return nil

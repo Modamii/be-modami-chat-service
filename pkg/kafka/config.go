@@ -3,7 +3,6 @@ package kafka
 import (
 	"crypto/tls"
 	"fmt"
-	config "github.com/techinsight/be-techinsights-notification-service/configs"
 	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -11,43 +10,39 @@ import (
 	"github.com/twmb/franz-go/pkg/sasl/plain"
 	"github.com/twmb/franz-go/pkg/sasl/scram"
 )
+
 type KafkaConfig struct {
-	Env                    string        `json:"env" yaml:"env"`
-	PostfixID              string        `json:"postfixId" yaml:"postfixId"`
-	Brokers                []string      `json:"brokers" yaml:"brokers"`
-	ClientID               string        `json:"clientId" yaml:"clientId"`
-	ConsumerGroupID        string        `json:"consumerGroupId" yaml:"consumerGroupId"`
-	ProducerOnlyMode       bool          `json:"producerOnlyMode" yaml:"producerOnlyMode"`
-	ConnectionTimeout      time.Duration `json:"connectionTimeout" yaml:"connectionTimeout"`
-	ConsumerMaxBytes       int32         `json:"consumerMaxBytes" yaml:"consumerMaxBytes"`
-	ConsumerConcurrency    int           `json:"consumerConcurrency" yaml:"consumerConcurrency"`
-	SSL *SSLConfig `json:"ssl,omitempty" yaml:"ssl,omitempty"`
-	SASL *SASLConfig `json:"sasl,omitempty" yaml:"sasl,omitempty"`
+	Brokers             []string      `json:"brokers" yaml:"brokers"`
+	ClientID            string        `json:"clientId" yaml:"clientId"`
+	ConsumerGroupID     string        `json:"consumerGroupId" yaml:"consumerGroupId"`
+	ProducerOnlyMode    bool          `json:"producerOnlyMode" yaml:"producerOnlyMode"`
+	ConnectionTimeout   time.Duration `json:"connectionTimeout" yaml:"connectionTimeout"`
+	ConsumerMaxBytes    int32         `json:"consumerMaxBytes" yaml:"consumerMaxBytes"`
+	ConsumerConcurrency int           `json:"consumerConcurrency" yaml:"consumerConcurrency"`
+	SSL                 *SSLConfig    `json:"ssl,omitempty" yaml:"ssl,omitempty"`
+	SASL                *SASLConfig   `json:"sasl,omitempty" yaml:"sasl,omitempty"`
 }
+
 type SSLConfig struct {
 	CA   string `json:"ca" yaml:"ca"`
 	Key  string `json:"key" yaml:"key"`
 	Cert string `json:"cert" yaml:"cert"`
 }
+
 type SASLConfig struct {
 	Mechanism string `json:"mechanism" yaml:"mechanism"`
 	Username  string `json:"username" yaml:"username"`
 	Password  string `json:"password" yaml:"password"`
 }
-func GetDefaultKafkaConfig(cfg *config.Config) *KafkaConfig {
-	return &KafkaConfig{
-		Env:                 cfg.App.Environment,
-		PostfixID:           "default",
-		Brokers:             cfg.Kafka.Brokers,
-		ClientID:            cfg.Kafka.ClientID,
-		ConsumerGroupID:     cfg.Kafka.ConsumerGroupID,
-		ProducerOnlyMode:    false,
-		ConnectionTimeout:   30 * time.Second,
-		ConsumerMaxBytes:    10000,
-		ConsumerConcurrency: 100,
-	}
-}
+
 func (kc *KafkaConfig) ToFranzGoOpts() ([]kgo.Opt, error) {
+	if kc.ConnectionTimeout == 0 {
+		kc.ConnectionTimeout = 30 * time.Second
+	}
+	if kc.ConsumerMaxBytes == 0 {
+		kc.ConsumerMaxBytes = 10000
+	}
+
 	opts := []kgo.Opt{
 		kgo.SeedBrokers(kc.Brokers...),
 		kgo.ClientID(kc.ClientID),
@@ -55,7 +50,7 @@ func (kc *KafkaConfig) ToFranzGoOpts() ([]kgo.Opt, error) {
 		kgo.FetchMaxBytes(kc.ConsumerMaxBytes),
 	}
 
-	if !kc.ProducerOnlyMode {
+	if !kc.ProducerOnlyMode && kc.ConsumerGroupID != "" {
 		opts = append(opts, kgo.ConsumerGroup(kc.ConsumerGroupID))
 	}
 

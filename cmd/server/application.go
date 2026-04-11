@@ -4,43 +4,44 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"reflect"
 	"time"
 
-	chathttp "be-modami-chat-service/internal/delivery/http"
-	"be-modami-chat-service/internal/delivery/http/middleware"
-	chatkafka "be-modami-chat-service/internal/kafka"
+	config "be-modami-chat-service/config"
+	_ "be-modami-chat-service/docs" // Swagger generated docs
+	chatcache "be-modami-chat-service/internal/adapter/cache"
+	chathandler "be-modami-chat-service/internal/adapter/handler"
+	"be-modami-chat-service/internal/adapter/handler/middleware"
+	repository "be-modami-chat-service/internal/adapter/repository"
 	"be-modami-chat-service/internal/service"
-	mongorepo "be-modami-chat-service/internal/store/mongo"
-	redisstore "be-modami-chat-service/internal/store/redis"
-	"be-modami-chat-service/configs"
-	"be-modami-chat-service/pkg/jwt"
+	pkgkafka "be-modami-chat-service/pkg/kafka"
 	"be-modami-chat-service/pkg/kafka/events"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/rs/zerolog/log"
-	"github.com/twmb/franz-go/pkg/kgo"
+	httpswagger "github.com/swaggo/http-swagger"
+
+	logging "gitlab.com/lifegoeson-libs/pkg-logging"
+	"gitlab.com/lifegoeson-libs/pkg-logging/logger"
+	pkgloggingmw "gitlab.com/lifegoeson-libs/pkg-logging/middleware"
 )
 
 type Application struct {
-	HTTPServer      *http.Server
-	MessageConsumer *chatkafka.Consumer
-	PresenceStore   *redisstore.PresenceStore
+	HTTPServer    *http.Server
+	KafkaService  *pkgkafka.KafkaService
+	ChatConsumer  *pkgkafka.Consumer
+	PresenceStore *chatcache.PresenceStore
 }
 
 func NewApplication(ctx context.Context, cfg *config.Config, conn *Connections) *Application {
-	// Ensure indexes
-	if err := mongorepo.EnsureIndexes(ctx, conn.MongoDB); err != nil {
-		log.Fatal().Err(err).Msg("failed to ensure indexes")
-	}
-
 	// Repositories & adapters
-	msgRepo := mongorepo.NewMessageRepo(conn.MongoDB)
-	convRepo := mongorepo.NewConversationRepo(conn.MongoDB)
-	cacheStore := redisstore.NewCacheStore(conn.RedisClient)
-	presenceStore := redisstore.NewPresenceStore(conn.RedisClient)
-	rateLimiter := redisstore.NewRateLimiter(conn.RedisClient)
+	msgRepo := repository.NewMessageRepo(conn.ScyllaSession)
+	convRepo := repository.NewConversationRepo(conn.ScyllaSession)
+	cacheStore := chatcache.NewCacheStore(conn.RedisClient)
+	presenceStore := chatcache.NewPresenceStore(conn.RedisClient)
+	rateLimiter := chatcache.NewRateLimiter(conn.RedisClient)
 
 	// Service
 	chatService := service.NewChatService(
@@ -54,14 +55,19 @@ func NewApplication(ctx context.Context, cfg *config.Config, conn *Connections) 
 		conn.IDGen,
 	)
 
+	// Auth middleware (Keycloak JWKS)
+	authMW, err := middleware.NewAuthMiddleware(cfg.Keycloak.JWKSUrl)
+	if err != nil {
+		// Non-fatal: keys will be refreshed lazily on first request.
+		logger.Warn(ctx, "jwks initial fetch failed, will retry on first request", logging.String("error", err.Error()))
+	}
+
 	// HTTP server
-	jwtService := jwt.NewService(cfg.JWT.Secret, cfg.JWT.Expiration)
-	chatHandler := chathttp.NewHandler(chatService)
+	chatHandler := chathandler.NewHandler(chatService)
 
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
 	r.Use(chimw.RealIP)
-	r.Use(middleware.RequestLogger)
 	r.Use(chimw.Recoverer)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORS.AllowedOrigins,
@@ -83,8 +89,13 @@ func NewApplication(ctx context.Context, cfg *config.Config, conn *Connections) 
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
+	// Swagger UI — available at /swagger/index.html
+	r.Get("/swagger/*", httpswagger.Handler(
+		httpswagger.URL("/swagger/doc.json"),
+	))
+
 	// Centrifugo proxy endpoints (called by Centrifugo internally)
-	centrifugoProxy := chathttp.NewCentrifugoProxy(jwtService, chatService)
+	centrifugoProxy := chathandler.NewCentrifugoProxy(authMW, chatService)
 	r.Route("/centrifugo/proxy", func(r chi.Router) {
 		r.Post("/connect", centrifugoProxy.HandleConnect)
 		r.Post("/subscribe", centrifugoProxy.HandleSubscribe)
@@ -92,53 +103,58 @@ func NewApplication(ctx context.Context, cfg *config.Config, conn *Connections) 
 
 	// Authenticated routes
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.JWTAuth(jwtService))
+		r.Use(middleware.JWTAuth(authMW))
 		r.Route("/api/v1", func(r chi.Router) {
 			chatHandler.RegisterRoutes(r)
 		})
 	})
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
+
+	// Wrap the router with OTel tracing + metrics middleware.
+	handler := pkgloggingmw.HTTPMiddleware("chat-service", r, &pkgloggingmw.HttpLoggingOptions{
+		ExceptRoutes: []string{"/health"},
+	})
+
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      r,
+		Handler:      handler,
 		ReadTimeout:  time.Duration(cfg.Server.ReadTimeout) * time.Second,
 		WriteTimeout: time.Duration(cfg.Server.WriteTimeout) * time.Second,
 	}
 
-	// Kafka consumer
-	messageConsumer, err := chatkafka.NewConsumer(
-		cfg.Kafka.Brokers,
-		cfg.Kafka.ConsumerGroup,
-		[]string{events.TopicMessagesInbound},
-		func(ctx context.Context, record *kgo.Record) error {
-			envelope, err := events.DecodeEnvelope(record.Value)
-			if err != nil {
-				return err
+	// Kafka consumer — handles inbound messages.
+	chatConsumer := pkgkafka.NewConsumer("chat-inbound", conn.KafkaService)
+	chatConsumer.RegisterHandler(pkgkafka.NewTopicHandler(
+		pkgkafka.TopicMessagesInbound,
+		func(ctx context.Context, payload any) error {
+			event, ok := payload.(events.KafkaEventBase)
+			if !ok {
+				return nil
 			}
-			log.Debug().
-				Str("event_type", envelope.EventType).
-				Str("event_id", envelope.EventID).
-				Msg("processing kafka message")
+			logger.Debug(ctx, "processing inbound kafka message",
+				logging.String("event_type", event.EventType),
+				logging.String("event_id", event.EventID),
+			)
 			return nil
 		},
-	)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to create kafka consumer")
-	}
+		reflect.TypeOf(events.KafkaEventBase{}),
+		nil,
+	))
 
 	return &Application{
-		HTTPServer:      srv,
-		MessageConsumer: messageConsumer,
-		PresenceStore:   presenceStore,
+		HTTPServer:    srv,
+		KafkaService:  conn.KafkaService,
+		ChatConsumer:  chatConsumer,
+		PresenceStore: presenceStore,
 	}
 }
 
 func (a *Application) Start(ctx context.Context) {
 	// Start Kafka consumer
 	go func() {
-		if err := a.MessageConsumer.Start(ctx); err != nil && ctx.Err() == nil {
-			log.Error().Err(err).Msg("kafka consumer error")
+		if err := a.KafkaService.StartConsumer(ctx, []pkgkafka.ConsumerHandler{a.ChatConsumer}); err != nil && ctx.Err() == nil {
+			logger.Error(ctx, "kafka consumer error", err)
 		}
 	}()
 
@@ -152,7 +168,7 @@ func (a *Application) Start(ctx context.Context) {
 				return
 			case <-ticker.C:
 				if err := a.PresenceStore.CleanupStalePresence(ctx); err != nil {
-					log.Error().Err(err).Msg("presence cleanup error")
+					logger.Error(ctx, "presence cleanup error", err)
 				}
 			}
 		}
@@ -160,16 +176,17 @@ func (a *Application) Start(ctx context.Context) {
 
 	// Start HTTP server
 	go func() {
-		log.Info().Str("addr", a.HTTPServer.Addr).Msg("http server started")
+		logger.Info(ctx, "http server started", logging.String("addr", a.HTTPServer.Addr))
 		if err := a.HTTPServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal().Err(err).Msg("http server error")
+			logger.Error(ctx, "http server error", err)
+			os.Exit(1)
 		}
 	}()
 }
 
 func (a *Application) Shutdown(ctx context.Context) {
 	if err := a.HTTPServer.Shutdown(ctx); err != nil {
-		log.Error().Err(err).Msg("http server shutdown error")
+		logger.Error(ctx, "http server shutdown error", err)
 	}
-	a.MessageConsumer.Close()
+	a.KafkaService.Close()
 }

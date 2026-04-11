@@ -23,40 +23,40 @@ const (
 
 // Conversation represents a chat conversation (1-1 or group).
 type Conversation struct {
-	ID           string
-	Type         ConversationType
-	Name         string
-	AvatarURL    string
-	CreatedBy    string
-	Participants []Participant
-	LastMessage  *LastMessage
-	Settings     ConversationSettings
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID           string           `json:"id"`
+	Type         ConversationType `json:"type"`
+	Name         string           `json:"name,omitempty"`
+	AvatarURL    string           `json:"avatar_url,omitempty"`
+	CreatedBy    string           `json:"created_by"`
+	Participants []Participant    `json:"participants"`
+	LastMessage  *LastMessage     `json:"last_message,omitempty"`
+	Settings     ConversationSettings `json:"settings"`
+	CreatedAt    time.Time        `json:"created_at"`
+	UpdatedAt    time.Time        `json:"updated_at"`
 }
 
 // Participant represents a user in a conversation.
 type Participant struct {
-	UserID              string
-	Role                ParticipantRole
-	JoinedAt            time.Time
-	LastReadMessageID   string
-	LastReadAt          time.Time
-	NotificationsMutedUntil *time.Time
+	UserID                  string          `json:"user_id"`
+	Role                    ParticipantRole `json:"role"`
+	JoinedAt                time.Time       `json:"joined_at"`
+	LastReadMessageID       string          `json:"last_read_message_id,omitempty"`
+	LastReadAt              time.Time       `json:"last_read_at,omitempty"`
+	NotificationsMutedUntil *time.Time      `json:"notifications_muted_until,omitempty"`
 }
 
 // LastMessage holds denormalized last message info for conversation list display.
 type LastMessage struct {
-	MessageID      string
-	SenderID       string
-	ContentPreview string
-	Type           MessageType
-	SentAt         time.Time
+	MessageID      string      `json:"message_id"`
+	SenderID       string      `json:"sender_id"`
+	ContentPreview string      `json:"content_preview"`
+	Type           MessageType `json:"type"`
+	SentAt         time.Time   `json:"sent_at"`
 }
 
 // ConversationSettings holds group-specific settings.
 type ConversationSettings struct {
-	OnlyAdminsCanSend bool
+	OnlyAdminsCanSend bool `json:"only_admins_can_send"`
 }
 
 const (

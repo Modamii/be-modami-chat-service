@@ -1,17 +1,19 @@
 services:
-  mongodb:
-    image: mongo:7
+  scylladb:
+    image: scylladb/scylla:6.2
     ports:
-      - "27017:27017"
+      - "9042:9042"
+    command: --smp 1 --memory 750M --overprovisioned 1 --developer-mode 1
     volumes:
-      - mongodb_data:/data/db
+      - scylladb_data:/var/lib/scylla
     networks:
       - chat-net
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD-SHELL", "cqlsh -e 'describe cluster' || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
   redis:
     image: redis:7-alpine
@@ -74,7 +76,7 @@ services:
   #   networks:
   #     - chat-net
   #   depends_on:
-  #     mongodb:
+  #     scylladb:
   #       condition: service_healthy
   #     redis:
   #       condition: service_healthy
@@ -89,6 +91,6 @@ networks:
     driver: bridge
 
 volumes:
-  mongodb_data:
+  scylladb_data:
   redis_data:
   kafka_data:

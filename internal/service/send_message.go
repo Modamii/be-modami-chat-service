@@ -6,7 +6,8 @@ import (
 
 	"be-modami-chat-service/internal/domain"
 
-	"github.com/rs/zerolog/log"
+	logging "gitlab.com/lifegoeson-libs/pkg-logging"
+	"gitlab.com/lifegoeson-libs/pkg-logging/logger"
 )
 
 // SendMessageCommand holds input for sending a message.
@@ -76,12 +77,17 @@ func (s *ChatService) SendMessage(ctx context.Context, cmd SendMessageCommand) (
 		SentAt:         msg.CreatedAt,
 	}
 	if err := s.convRepo.UpdateLastMessage(ctx, cmd.ConversationID, lastMsg); err != nil {
-		log.Error().Err(err).Str("conv_id", cmd.ConversationID).Msg("failed to update last message")
+		logger.Error(ctx, "failed to update last message", err, logging.String("conv_id", cmd.ConversationID))
 	}
 
-	// Publish event to Kafka (async delivery via consumer)
+	// Publish event to Kafka
 	if err := s.publisher.PublishMessageSent(ctx, msg); err != nil {
-		log.Error().Err(err).Str("msg_id", msg.ID).Msg("failed to publish message event")
+		logger.Error(ctx, "failed to publish message event", err, logging.String("msg_id", msg.ID))
+	}
+
+	// Push new message to all conversation subscribers via Centrifugo
+	if err := s.realtime.PublishToConversation(ctx, cmd.ConversationID, "message.new", msg); err != nil {
+		logger.Error(ctx, "failed to publish realtime message", err, logging.String("msg_id", msg.ID))
 	}
 
 	// Increment unread counts for other participants
@@ -90,7 +96,7 @@ func (s *ChatService) SendMessage(ctx context.Context, cmd SendMessageCommand) (
 			continue
 		}
 		if err := s.cache.IncrementUnread(ctx, pid, cmd.ConversationID); err != nil {
-			log.Error().Err(err).Str("user_id", pid).Msg("failed to increment unread")
+			logger.Error(ctx, "failed to increment unread", err, logging.String("user_id", pid))
 		}
 	}
 

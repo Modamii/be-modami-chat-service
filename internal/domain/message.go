@@ -17,54 +17,54 @@ const (
 
 // Message represents a chat message in a conversation.
 type Message struct {
-	ID             string
-	ConversationID string
-	SenderID       string
-	Type           MessageType
-	Content        MessageContent
-	Media          *MediaInfo
-	ReplyTo        *ReplyInfo
-	ForwardedFrom  *ForwardInfo
-	Reactions      []Reaction
-	Edited         bool
-	Deleted        bool
-	CreatedAt      time.Time
+	ID             string         `json:"id"`
+	ConversationID string         `json:"conversation_id"`
+	SenderID       string         `json:"sender_id"`
+	Type           MessageType    `json:"type"`
+	Content        MessageContent `json:"content"`
+	Media          *MediaInfo     `json:"media,omitempty"`
+	ReplyTo        *ReplyInfo     `json:"reply_to,omitempty"`
+	ForwardedFrom  *ForwardInfo   `json:"forwarded_from,omitempty"`
+	Reactions      []Reaction     `json:"reactions"`
+	Edited         bool           `json:"edited"`
+	Deleted        bool           `json:"deleted"`
+	CreatedAt      time.Time      `json:"created_at"`
 }
 
 // MessageContent holds the text content and any mentions.
 type MessageContent struct {
-	Text     string
-	Mentions []string
+	Text     string   `json:"text,omitempty"`
+	Mentions []string `json:"mentions,omitempty"`
 }
 
 // MediaInfo holds metadata for media messages.
 type MediaInfo struct {
-	URL          string
-	ThumbnailURL string
-	MIMEType     string
-	FileSize     int64
-	FileName     string
-	Width        int
-	Height       int
+	URL          string `json:"url"`
+	ThumbnailURL string `json:"thumbnail_url,omitempty"`
+	MIMEType     string `json:"mime_type"`
+	FileSize     int64  `json:"file_size"`
+	FileName     string `json:"file_name,omitempty"`
+	Width        int    `json:"width,omitempty"`
+	Height       int    `json:"height,omitempty"`
 }
 
 // ReplyInfo holds denormalized info about the message being replied to.
 type ReplyInfo struct {
-	MessageID      string
-	SenderID       string
-	ContentPreview string
+	MessageID      string `json:"message_id"`
+	SenderID       string `json:"sender_id"`
+	ContentPreview string `json:"content_preview"`
 }
 
 // ForwardInfo holds info about the original forwarded message.
 type ForwardInfo struct {
-	OriginalMessageID string
-	OriginalSenderID  string
+	OriginalMessageID string `json:"original_message_id"`
+	OriginalSenderID  string `json:"original_sender_id"`
 }
 
 // Reaction groups emoji reactions by emoji type.
 type Reaction struct {
-	Emoji   string
-	UserIDs []string
+	Emoji   string   `json:"emoji"`
+	UserIDs []string `json:"user_ids"`
 }
 
 const (

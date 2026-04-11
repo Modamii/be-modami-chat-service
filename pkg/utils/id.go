@@ -1,11 +1,16 @@
 package utils
 
-import "go.mongodb.org/mongo-driver/v2/bson"
+import (
+	"strings"
 
-// ObjectIDGenerator generates MongoDB ObjectID strings.
+	"github.com/google/uuid"
+)
+
+// ObjectIDGenerator generates unique ID strings using UUID v4.
 type ObjectIDGenerator struct{}
 
-// NewID generates a new ObjectID hex string.
+// NewID generates a new unique ID (UUID v4, no dashes).
 func (g *ObjectIDGenerator) NewID() string {
-	return bson.NewObjectID().Hex()
+	id := uuid.New()
+	return strings.ReplaceAll(id.String(), "-", "")
 }

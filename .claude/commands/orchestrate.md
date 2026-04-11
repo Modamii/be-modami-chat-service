@@ -154,7 +154,7 @@ Create one tracking item per agent in wave order:
 For every agent in the wave, construct a rich context prompt:
 
 ```
-You are being invoked as part of an orchestrated execution of the following task:
+You are modamig invoked as part of an orchestrated execution of the following task:
 
 **Task**: [full task description]
 **Your specific subtask**: [precise description of what you must produce]

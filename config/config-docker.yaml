@@ -1,0 +1,47 @@
+app:
+  name: "chat-service"
+  environment: "docker"
+
+server:
+  port: 8080
+  host: "0.0.0.0"
+  read_timeout: 15
+  write_timeout: 15
+
+scylladb:
+  hosts:
+    - "scylladb"
+  keyspace: "chat"
+  num_conns: 4
+
+redis:
+  addr: "redis:6379"
+  password: ""
+  db: 0
+
+kafka:
+  brokers:
+    - "kafka:9092"
+  consumer_group: "chat-message-processor"
+  client_id: "chat-service"
+  environment: ""
+
+centrifugo:
+  api_url: "http://centrifugo:8000/api"
+  api_key: "centrifugo-api-key"
+
+jwt:
+  secret: "your-secret-key-change-in-production"
+  expiration: 15
+
+cors:
+  allowed_origins:
+    - "*"
+  max_age: 300
+
+log:
+  level: "info"
+  service_name: "chat-service"
+  environment: "docker"
+  otlp_endpoint: ""
+  insecure: true

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/twmb/franz-go/pkg/kgo"
-	"go.opentelemetry.io/otel"
+	pkgotel "gitlab.com/lifegoeson-libs/pkg-logging/otel"
 )
 
 type KafkaHeaderCarrier struct {
@@ -53,13 +53,11 @@ func (c *KafkaHeaderCarrier) Headers() []kgo.RecordHeader {
 
 func InjectTraceContext(ctx context.Context, headers []kgo.RecordHeader) []kgo.RecordHeader {
 	carrier := NewKafkaHeaderCarrier(headers)
-	propagator := otel.GetTextMapPropagator()
-	propagator.Inject(ctx, carrier)
+	pkgotel.Inject(ctx, carrier)
 	return carrier.Headers()
 }
 
 func ExtractTraceContext(ctx context.Context, headers []kgo.RecordHeader) context.Context {
 	carrier := NewKafkaHeaderCarrier(headers)
-	propagator := otel.GetTextMapPropagator()
-	return propagator.Extract(ctx, carrier)
+	return pkgotel.Extract(ctx, carrier)
 }

@@ -1,0 +1,71 @@
+app:
+  name: "be-modami-chat-service"
+  version: "1.0.0"
+  environment: "local"
+
+server:
+  host: "0.0.0.0"
+  port: 8090
+
+cors:
+  allow_credentials: true
+  allowed_origins:
+    - "http://localhost:5173"
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+    - "http://localhost:8081"
+  max_age: 300
+
+scylladb:
+  hosts:
+    - "192.168.97.14"
+    - "192.168.97.15"
+    - "192.168.97.16"
+  keyspace: "chat"
+  num_conns: 2
+  datacenter: "dc1"
+  replication_factor: 3
+
+redis:
+  host: "localhost"
+  port: 6379
+  database: 0
+  rate_limit_database: 5
+  ttl: 259200s
+  pool_size: 100
+  pass: "password"
+  user_name: "username"
+  write_timeout: 600s
+  read_timeout: 600s
+  dial_timeout: 600s
+  tls_config:
+    insecure_skip_verify: true
+
+kafka:
+  broker_list: "localhost:9092"
+  enable: true
+  tls_enable: false
+  partition: 1
+  partitioner: "random"
+  sasl_producer_username: ""
+  sasl_producer_password: ""
+  sasl_consumer_username: ""
+  sasl_consumer_password: ""
+  consumer_group: "chat-service-group"
+  client_id: "chat-service"
+  env: "local"
+
+centrifugo:
+  api_url: "http://localhost:8000/api"
+  api_key: "centrifugo-api-key"
+
+keycloak:
+  jwks_url: "http://localhost:8180/realms/modami/protocol/openid-connect/certs"
+
+observability:
+  service_name: "chat-service"
+  service_version: "1.0.0"
+  environment: "local"
+  log_level: "debug"
+  otlp_endpoint: ""
+  otlp_insecure: true

@@ -6,7 +6,16 @@
       "Bash(go build:*)",
       "Bash(sed -i 's/^package usecase$/package service/' internal/service/*.go)",
       "Bash(sed -i 's|be-modami-chat-service/internal/chat/domain|be-modami-chat-service/internal/domain|g' internal/service/*.go)",
-      "Bash(go vet:*)"
+      "Bash(go vet:*)",
+      "Bash(grep:*)",
+      "Bash(which swag:*)",
+      "Bash(swag init:*)",
+      "Bash(swag:*)",
+      "Bash(make swagger:*)",
+      "Bash(make build:*)",
+      "Bash(ls:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker exec:*)"
     ]
   }
 }

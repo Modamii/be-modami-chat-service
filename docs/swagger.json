@@ -1,0 +1,1598 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Real-time chat API with conversations, messages, reactions, and presence.",
+        "title": "Modami Chat Service",
+        "contact": {
+            "name": "Modami Engineering",
+            "email": "dev@modami.com"
+        },
+        "license": {
+            "name": "Private"
+        },
+        "version": "1.0.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api/v1",
+    "paths": {
+        "/conversations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the caller's conversations ordered by most-recently updated.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Conversations"
+                ],
+                "summary": "List conversations",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pagination cursor from previous response",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default 50, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_adapter_handler.cursorPagedData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/conversations/direct": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Opens a 1-to-1 conversation with another user. Idempotent: returns the existing conversation if one already exists.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Conversations"
+                ],
+                "summary": "Create or get a direct chat",
+                "parameters": [
+                    {
+                        "description": "Target user",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapter_handler.createDirectChatRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/be-modami-chat-service_internal_domain.Conversation"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/conversations/group": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new group chat. The caller is added as admin. Requires at least 1 additional member (max 49).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Conversations"
+                ],
+                "summary": "Create a group conversation",
+                "parameters": [
+                    {
+                        "description": "Group details",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapter_handler.createGroupRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/be-modami-chat-service_internal_domain.Conversation"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Group is full",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/conversations/{conversationID}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a single conversation. The caller must be a member.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Conversations"
+                ],
+                "summary": "Get a conversation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation ID",
+                        "name": "conversationID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/be-modami-chat-service_internal_domain.Conversation"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Not a member",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/conversations/{conversationID}/messages": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns messages ordered newest-first. Use the returned cursor for pagination. The caller must be a member.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Messages"
+                ],
+                "summary": "List messages in a conversation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation ID",
+                        "name": "conversationID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pagination cursor",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default 50, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_adapter_handler.cursorPagedData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Not a member",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Sends a message to a conversation. The caller must be a member. Subject to per-user rate limiting.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Messages"
+                ],
+                "summary": "Send a message",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation ID",
+                        "name": "conversationID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Message payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapter_handler.sendMessageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/be-modami-chat-service_internal_domain.Message"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Not a member or admin-only conversation",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Duplicate message",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limited",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/conversations/{conversationID}/participants": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Adds a user to a group conversation. Requires admin role. Max group size is 50.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Participants"
+                ],
+                "summary": "Add a participant to a group",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation ID",
+                        "name": "conversationID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "User to add",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapter_handler.addParticipantRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Not an admin",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Already a member or group is full",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/conversations/{conversationID}/participants/{userID}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Removes a user from a group. An admin can remove any member; a member can remove themselves (leave).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Participants"
+                ],
+                "summary": "Remove a participant from a group",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation ID",
+                        "name": "conversationID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "User ID to remove",
+                        "name": "userID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/conversations/{conversationID}/read": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates the caller's read cursor to the given message. Clears the unread count for this conversation.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Messages"
+                ],
+                "summary": "Mark messages as read",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation ID",
+                        "name": "conversationID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Last read message",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapter_handler.markAsReadRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/conversations/{conversationID}/typing": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Broadcasts a typing event to other conversation members via Centrifugo.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Presence"
+                ],
+                "summary": "Send typing indicator",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation ID",
+                        "name": "conversationID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Typing state",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapter_handler.typingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/messages/{messageID}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates the text of a message. Only the original sender may edit. Only text messages can be edited.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Messages"
+                ],
+                "summary": "Edit a message",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Message ID",
+                        "name": "messageID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New text",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapter_handler.editMessageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/be-modami-chat-service_internal_domain.Message"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Not the sender",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "410": {
+                        "description": "Message has been deleted",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Soft-deletes a message (content is cleared; the record remains). Only the original sender may delete.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Messages"
+                ],
+                "summary": "Delete a message",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Message ID",
+                        "name": "messageID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/messages/{messageID}/reactions": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Reacts to a message with an emoji. A message may have at most 20 distinct emojis and 50 users per emoji.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reactions"
+                ],
+                "summary": "Add an emoji reaction",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Message ID",
+                        "name": "messageID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Emoji",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapter_handler.addReactionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Reaction limit reached",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/messages/{messageID}/reactions/{emoji}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Removes the caller's reaction with the given emoji from a message.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reactions"
+                ],
+                "summary": "Remove an emoji reaction",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Message ID",
+                        "name": "messageID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "URL-encoded emoji character",
+                        "name": "emoji",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/unread": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a map of conversation_id → unread_count for the caller. Counts are served from Redis cache.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Messages"
+                ],
+                "summary": "Get unread message counts",
+                "responses": {
+                    "200": {
+                        "description": "conversation_id to unread count",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "integer",
+                                                "format": "int64"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "apperror.Code": {
+            "type": "string",
+            "enum": [
+                "BAD_REQUEST",
+                "UNAUTHORIZED",
+                "FORBIDDEN",
+                "NOT_FOUND",
+                "METHOD_NOT_ALLOWED",
+                "NOT_ACCEPTABLE",
+                "REQUEST_TIMEOUT",
+                "CONFLICT",
+                "GONE",
+                "PRECONDITION_FAILED",
+                "PAYLOAD_TOO_LARGE",
+                "UNSUPPORTED_MEDIA_TYPE",
+                "VALIDATION_ERROR",
+                "UNPROCESSABLE_ENTITY",
+                "LOCKED",
+                "FAILED_DEPENDENCY",
+                "PRECONDITION_REQUIRED",
+                "TOO_MANY_REQUESTS",
+                "INTERNAL_ERROR",
+                "NOT_IMPLEMENTED",
+                "BAD_GATEWAY",
+                "SERVICE_UNAVAILABLE",
+                "TIMEOUT",
+                "CACHE_MISS",
+                "CACHE_ERROR",
+                "MESSAGE_BUS_ERROR"
+            ],
+            "x-enum-varnames": [
+                "CodeBadRequest",
+                "CodeUnauthorized",
+                "CodeForbidden",
+                "CodeNotFound",
+                "CodeMethodNotAllowed",
+                "CodeNotAcceptable",
+                "CodeRequestTimeout",
+                "CodeConflict",
+                "CodeGone",
+                "CodePrecondFailed",
+                "CodePayloadTooLarge",
+                "CodeUnsupportedMedia",
+                "CodeValidation",
+                "CodeUnprocessable",
+                "CodeLocked",
+                "CodeFailedDependency",
+                "CodePrecondRequired",
+                "CodeTooManyRequest",
+                "CodeInternal",
+                "CodeNotImplemented",
+                "CodeBadGateway",
+                "CodeServiceUnavail",
+                "CodeTimeout",
+                "CodeCacheMiss",
+                "CodeCacheError",
+                "CodeMessageBus"
+            ]
+        },
+        "be-modami-chat-service_internal_domain.Conversation": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_message": {
+                    "$ref": "#/definitions/be-modami-chat-service_internal_domain.LastMessage"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "participants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/be-modami-chat-service_internal_domain.Participant"
+                    }
+                },
+                "settings": {
+                    "$ref": "#/definitions/be-modami-chat-service_internal_domain.ConversationSettings"
+                },
+                "type": {
+                    "$ref": "#/definitions/be-modami-chat-service_internal_domain.ConversationType"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "be-modami-chat-service_internal_domain.ConversationSettings": {
+            "type": "object",
+            "properties": {
+                "only_admins_can_send": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "be-modami-chat-service_internal_domain.ConversationType": {
+            "type": "string",
+            "enum": [
+                "direct",
+                "group"
+            ],
+            "x-enum-varnames": [
+                "ConversationTypeDirect",
+                "ConversationTypeGroup"
+            ]
+        },
+        "be-modami-chat-service_internal_domain.ForwardInfo": {
+            "type": "object",
+            "properties": {
+                "original_message_id": {
+                    "type": "string"
+                },
+                "original_sender_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "be-modami-chat-service_internal_domain.LastMessage": {
+            "type": "object",
+            "properties": {
+                "content_preview": {
+                    "type": "string"
+                },
+                "message_id": {
+                    "type": "string"
+                },
+                "sender_id": {
+                    "type": "string"
+                },
+                "sent_at": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/be-modami-chat-service_internal_domain.MessageType"
+                }
+            }
+        },
+        "be-modami-chat-service_internal_domain.MediaInfo": {
+            "type": "object",
+            "properties": {
+                "file_name": {
+                    "type": "string"
+                },
+                "file_size": {
+                    "type": "integer"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "mime_type": {
+                    "type": "string"
+                },
+                "thumbnail_url": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "width": {
+                    "type": "integer"
+                }
+            }
+        },
+        "be-modami-chat-service_internal_domain.Message": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "$ref": "#/definitions/be-modami-chat-service_internal_domain.MessageContent"
+                },
+                "conversation_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted": {
+                    "type": "boolean"
+                },
+                "edited": {
+                    "type": "boolean"
+                },
+                "forwarded_from": {
+                    "$ref": "#/definitions/be-modami-chat-service_internal_domain.ForwardInfo"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "media": {
+                    "$ref": "#/definitions/be-modami-chat-service_internal_domain.MediaInfo"
+                },
+                "reactions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/be-modami-chat-service_internal_domain.Reaction"
+                    }
+                },
+                "reply_to": {
+                    "$ref": "#/definitions/be-modami-chat-service_internal_domain.ReplyInfo"
+                },
+                "sender_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/be-modami-chat-service_internal_domain.MessageType"
+                }
+            }
+        },
+        "be-modami-chat-service_internal_domain.MessageContent": {
+            "type": "object",
+            "properties": {
+                "mentions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "be-modami-chat-service_internal_domain.MessageType": {
+            "type": "string",
+            "enum": [
+                "text",
+                "image",
+                "video",
+                "file",
+                "audio",
+                "location",
+                "system"
+            ],
+            "x-enum-varnames": [
+                "MessageTypeText",
+                "MessageTypeImage",
+                "MessageTypeVideo",
+                "MessageTypeFile",
+                "MessageTypeAudio",
+                "MessageTypeLocation",
+                "MessageTypeSystem"
+            ]
+        },
+        "be-modami-chat-service_internal_domain.Participant": {
+            "type": "object",
+            "properties": {
+                "joined_at": {
+                    "type": "string"
+                },
+                "last_read_at": {
+                    "type": "string"
+                },
+                "last_read_message_id": {
+                    "type": "string"
+                },
+                "notifications_muted_until": {
+                    "type": "string"
+                },
+                "role": {
+                    "$ref": "#/definitions/be-modami-chat-service_internal_domain.ParticipantRole"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "be-modami-chat-service_internal_domain.ParticipantRole": {
+            "type": "string",
+            "enum": [
+                "member",
+                "admin"
+            ],
+            "x-enum-varnames": [
+                "RoleMember",
+                "RoleAdmin"
+            ]
+        },
+        "be-modami-chat-service_internal_domain.Reaction": {
+            "type": "object",
+            "properties": {
+                "emoji": {
+                    "type": "string"
+                },
+                "user_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "be-modami-chat-service_internal_domain.ReplyInfo": {
+            "type": "object",
+            "properties": {
+                "content_preview": {
+                    "type": "string"
+                },
+                "message_id": {
+                    "type": "string"
+                },
+                "sender_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_adapter_handler.addParticipantRequest": {
+            "type": "object",
+            "properties": {
+                "user_id": {
+                    "type": "string",
+                    "example": "user_xyz"
+                }
+            }
+        },
+        "internal_adapter_handler.addReactionRequest": {
+            "type": "object",
+            "properties": {
+                "emoji": {
+                    "type": "string",
+                    "example": "👍"
+                }
+            }
+        },
+        "internal_adapter_handler.createDirectChatRequest": {
+            "type": "object",
+            "properties": {
+                "user_id": {
+                    "type": "string",
+                    "example": "user_xyz"
+                }
+            }
+        },
+        "internal_adapter_handler.createGroupRequest": {
+            "type": "object",
+            "properties": {
+                "member_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "user_abc",
+                        "user_xyz"
+                    ]
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Team Alpha"
+                }
+            }
+        },
+        "internal_adapter_handler.cursorPagedData": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean"
+                },
+                "items": {},
+                "next_cursor": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_adapter_handler.editMessageRequest": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "example": "Updated message text"
+                }
+            }
+        },
+        "internal_adapter_handler.markAsReadRequest": {
+            "type": "object",
+            "properties": {
+                "message_id": {
+                    "type": "string",
+                    "example": "66a1b2c3d4e5f6a7b8c9d0e1"
+                }
+            }
+        },
+        "internal_adapter_handler.mediaInfoRequest": {
+            "type": "object",
+            "properties": {
+                "file_name": {
+                    "type": "string",
+                    "example": "photo.jpg"
+                },
+                "file_size": {
+                    "type": "integer",
+                    "example": 204800
+                },
+                "height": {
+                    "type": "integer",
+                    "example": 720
+                },
+                "mime_type": {
+                    "type": "string",
+                    "example": "image/jpeg"
+                },
+                "thumbnail_url": {
+                    "type": "string",
+                    "example": "https://cdn.example.com/photo_thumb.jpg"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://cdn.example.com/photo.jpg"
+                },
+                "width": {
+                    "type": "integer",
+                    "example": 1280
+                }
+            }
+        },
+        "internal_adapter_handler.replyToRequest": {
+            "type": "object",
+            "properties": {
+                "content_preview": {
+                    "type": "string",
+                    "example": "How are you?"
+                },
+                "message_id": {
+                    "type": "string",
+                    "example": "66a1b2c3d4e5f6a7b8c9d0e1"
+                },
+                "sender_id": {
+                    "type": "string",
+                    "example": "user_abc"
+                }
+            }
+        },
+        "internal_adapter_handler.sendMessageRequest": {
+            "type": "object",
+            "properties": {
+                "media": {
+                    "description": "Media attachment. Required when type != text.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/internal_adapter_handler.mediaInfoRequest"
+                        }
+                    ]
+                },
+                "mentions": {
+                    "description": "Optional list of mentioned user IDs.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "user_abc",
+                        "user_xyz"
+                    ]
+                },
+                "reply_to": {
+                    "description": "Optional reply reference.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/internal_adapter_handler.replyToRequest"
+                        }
+                    ]
+                },
+                "text": {
+                    "description": "Plain text body. Required when type=text.",
+                    "type": "string",
+                    "example": "Hello!"
+                },
+                "type": {
+                    "description": "Message type: text, image, video, file, or audio.",
+                    "type": "string",
+                    "example": "text"
+                }
+            }
+        },
+        "internal_adapter_handler.typingRequest": {
+            "type": "object",
+            "properties": {
+                "typing": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "response.ErrorBody": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "$ref": "#/definitions/apperror.Code"
+                },
+                "detail": {
+                    "type": "string"
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.FieldError"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "response.FieldError": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "response.Meta": {
+            "type": "object",
+            "properties": {
+                "pagination": {
+                    "$ref": "#/definitions/response.Pagination"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "integer"
+                }
+            }
+        },
+        "response.Pagination": {
+            "type": "object",
+            "properties": {
+                "has_next": {
+                    "type": "boolean"
+                },
+                "has_prev": {
+                    "type": "boolean"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "total_items": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "response.Response": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "error": {
+                    "$ref": "#/definitions/response.ErrorBody"
+                },
+                "meta": {
+                    "$ref": "#/definitions/response.Meta"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "JWT Bearer token. Format: \"Bearer \u003ctoken\u003e\"",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}
