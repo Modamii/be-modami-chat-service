@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"be-modami-chat-service/config"
+	"be-modami-chat-service/docs"
 
 	logging "gitlab.com/lifegoeson-libs/pkg-logging"
 	"gitlab.com/lifegoeson-libs/pkg-logging/logger"
@@ -28,6 +29,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "failed to load config: %v\n", err)
 		os.Exit(1)
 	}
+	docs.SwaggerInfo.Host = cfg.App.SwaggerHost
 
 	// Init logger
 	if err := logger.Init(logging.Config{

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"reflect"
@@ -109,7 +108,7 @@ func NewApplication(ctx context.Context, cfg *config.Config, conn *Connections) 
 		})
 	})
 
-	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
+	addr := cfg.App.ListenAddr()
 
 	// Wrap the router with OTel tracing + metrics middleware.
 	handler := pkgloggingmw.HTTPMiddleware("chat-service", r, &pkgloggingmw.HttpLoggingOptions{
@@ -119,8 +118,8 @@ func NewApplication(ctx context.Context, cfg *config.Config, conn *Connections) 
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      handler,
-		ReadTimeout:  time.Duration(cfg.Server.ReadTimeout) * time.Second,
-		WriteTimeout: time.Duration(cfg.Server.WriteTimeout) * time.Second,
+		ReadTimeout:  cfg.App.GetReadTimeout(),
+		WriteTimeout: cfg.App.GetWriteTimeout(),
 	}
 
 	// Kafka consumer — handles inbound messages.

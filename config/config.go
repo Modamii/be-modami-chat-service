@@ -12,7 +12,6 @@ import (
 // Config holds all configuration for the chat service.
 type Config struct {
 	App           AppConfig           `mapstructure:"app"`
-	Server        ServerConfig        `mapstructure:"server"`
 	ScyllaDB      ScyllaDBConfig      `mapstructure:"scylladb"`
 	Redis         RedisConfig         `mapstructure:"redis"`
 	Kafka         KafkaConfig         `mapstructure:"kafka"`
@@ -23,16 +22,61 @@ type Config struct {
 }
 
 type AppConfig struct {
-	Name        string `mapstructure:"name"`
-	Version     string `mapstructure:"version"`
-	Environment string `mapstructure:"environment"`
+	Name            string `mapstructure:"name"`
+	Version         string `mapstructure:"version"`
+	Environment     string `mapstructure:"environment"`
+	Debug           bool   `mapstructure:"debug"`
+	Port            int    `mapstructure:"port"`
+	Host            string `mapstructure:"host"`
+	SwaggerHost     string `mapstructure:"swagger_host"`
+	ShutdownTimeout string `mapstructure:"shutdown_timeout"`
+	ReadTimeout     string `mapstructure:"read_timeout"`
+	WriteTimeout    string `mapstructure:"write_timeout"`
+	IdleTimeout     string `mapstructure:"idle_timeout"`
 }
 
-type ServerConfig struct {
-	Host         string `mapstructure:"host"`
-	Port         int    `mapstructure:"port"`
-	ReadTimeout  int    `mapstructure:"read_timeout"`
-	WriteTimeout int    `mapstructure:"write_timeout"`
+func (a AppConfig) ListenAddr() string {
+	host := strings.TrimSpace(a.Host)
+	if host == "" {
+		host = "0.0.0.0"
+	}
+	port := a.Port
+	if port <= 0 {
+		port = 8080
+	}
+	return fmt.Sprintf("%s:%d", host, port)
+}
+
+func (a AppConfig) GetShutdownTimeout() time.Duration {
+	d, err := time.ParseDuration(a.ShutdownTimeout)
+	if err != nil {
+		return 30 * time.Second
+	}
+	return d
+}
+
+func (a AppConfig) GetReadTimeout() time.Duration {
+	d, err := time.ParseDuration(a.ReadTimeout)
+	if err != nil {
+		return 30 * time.Second
+	}
+	return d
+}
+
+func (a AppConfig) GetWriteTimeout() time.Duration {
+	d, err := time.ParseDuration(a.WriteTimeout)
+	if err != nil {
+		return 30 * time.Second
+	}
+	return d
+}
+
+func (a AppConfig) GetIdleTimeout() time.Duration {
+	d, err := time.ParseDuration(a.IdleTimeout)
+	if err != nil {
+		return 120 * time.Second
+	}
+	return d
 }
 
 type ScyllaDBConfig struct {
@@ -115,11 +159,14 @@ func setDefaults() {
 	viper.SetDefault("app.name", "chat-service")
 	viper.SetDefault("app.version", "1.0.0")
 	viper.SetDefault("app.environment", "local")
-
-	viper.SetDefault("server.host", "0.0.0.0")
-	viper.SetDefault("server.port", 8086)
-	viper.SetDefault("server.read_timeout", 15)
-	viper.SetDefault("server.write_timeout", 15)
+	viper.SetDefault("app.debug", false)
+	viper.SetDefault("app.host", "0.0.0.0")
+	viper.SetDefault("app.port", 8090)
+	viper.SetDefault("app.swagger_host", "localhost:8090")
+	viper.SetDefault("app.shutdown_timeout", "30s")
+	viper.SetDefault("app.read_timeout", "30s")
+	viper.SetDefault("app.write_timeout", "30s")
+	viper.SetDefault("app.idle_timeout", "120s")
 
 	viper.SetDefault("scylladb.hosts", []string{"localhost"})
 	viper.SetDefault("scylladb.keyspace", "chat")
@@ -194,8 +241,8 @@ func (c *Config) validate() error {
 	if c.Kafka.BrokerList == "" {
 		return fmt.Errorf("kafka.broker_list is required")
 	}
-	if c.Server.Port < 1 || c.Server.Port > 65535 {
-		return fmt.Errorf("server.port must be between 1 and 65535")
+	if c.App.Port < 1 || c.App.Port > 65535 {
+		return fmt.Errorf("app.port must be between 1 and 65535")
 	}
 	return nil
 }
