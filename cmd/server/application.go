@@ -69,12 +69,12 @@ func NewApplication(ctx context.Context, cfg *config.Config, conn *Connections) 
 	r.Use(chimw.RealIP)
 	r.Use(chimw.Recoverer)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   cfg.CORS.AllowedOrigins,
+		AllowedOrigins:   cfg.App.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-ID"},
 		ExposedHeaders:   []string{"X-Request-ID"},
 		AllowCredentials: true,
-		MaxAge:           cfg.CORS.MaxAge,
+		MaxAge:           cfg.App.CORSMaxAge,
 	}))
 
 	// Request body size limit (1MB)

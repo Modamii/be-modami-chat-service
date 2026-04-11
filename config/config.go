@@ -17,22 +17,24 @@ type Config struct {
 	Kafka         KafkaConfig         `mapstructure:"kafka"`
 	Centrifugo    CentrifugoConfig    `mapstructure:"centrifugo"`
 	Keycloak      KeycloakConfig      `mapstructure:"keycloak"`
-	CORS          CORSConfig          `mapstructure:"cors"`
 	Observability ObservabilityConfig `mapstructure:"observability"`
 }
 
 type AppConfig struct {
-	Name            string `mapstructure:"name"`
-	Version         string `mapstructure:"version"`
-	Environment     string `mapstructure:"environment"`
-	Debug           bool   `mapstructure:"debug"`
-	Port            int    `mapstructure:"port"`
-	Host            string `mapstructure:"host"`
-	SwaggerHost     string `mapstructure:"swagger_host"`
-	ShutdownTimeout string `mapstructure:"shutdown_timeout"`
-	ReadTimeout     string `mapstructure:"read_timeout"`
-	WriteTimeout    string `mapstructure:"write_timeout"`
-	IdleTimeout     string `mapstructure:"idle_timeout"`
+	Name             string   `mapstructure:"name"`
+	Version          string   `mapstructure:"version"`
+	Environment      string   `mapstructure:"environment"`
+	Debug            bool     `mapstructure:"debug"`
+	Port             int      `mapstructure:"port"`
+	Host             string   `mapstructure:"host"`
+	SwaggerHost      string   `mapstructure:"swagger_host"`
+	ShutdownTimeout  string   `mapstructure:"shutdown_timeout"`
+	ReadTimeout      string   `mapstructure:"read_timeout"`
+	WriteTimeout     string   `mapstructure:"write_timeout"`
+	IdleTimeout      string   `mapstructure:"idle_timeout"`
+	AllowCredentials bool     `mapstructure:"allow_credentials"`
+	AllowedOrigins   []string `mapstructure:"allowed_origins"`
+	CORSMaxAge       int      `mapstructure:"cors_max_age"`
 }
 
 func (a AppConfig) ListenAddr() string {
@@ -140,11 +142,6 @@ type KeycloakConfig struct {
 	JWKSUrl string `mapstructure:"jwks_url"`
 }
 
-type CORSConfig struct {
-	AllowedOrigins []string `mapstructure:"allowed_origins"`
-	MaxAge         int      `mapstructure:"max_age"`
-}
-
 type ObservabilityConfig struct {
 	ServiceName    string `mapstructure:"service_name"`
 	ServiceVersion string `mapstructure:"service_version"`
@@ -186,8 +183,9 @@ func setDefaults() {
 
 	viper.SetDefault("centrifugo.api_url", "http://localhost:8000/api")
 
-	viper.SetDefault("cors.allowed_origins", []string{"*"})
-	viper.SetDefault("cors.max_age", 300)
+	viper.SetDefault("app.allow_credentials", true)
+	viper.SetDefault("app.allowed_origins", []string{"*"})
+	viper.SetDefault("app.cors_max_age", 300)
 
 	viper.SetDefault("observability.log_level", "info")
 	viper.SetDefault("observability.service_name", "chat-service")
