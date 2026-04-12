@@ -1,4 +1,4 @@
-basePath: /api/v1
+basePath: /v1/chat-services
 definitions:
   apperror.Code:
     enum:
@@ -402,7 +402,7 @@ definitions:
       success:
         type: boolean
     type: object
-host: localhost:8080
+host: localhost:8090
 info:
   contact:
     email: dev@modami.com
