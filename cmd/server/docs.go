@@ -5,7 +5,7 @@
 // and ScyllaDB persistence.
 //
 // Authentication:
-//   All /api/v1/* endpoints require a Bearer JWT in the Authorization header.
+//   All /v1/chat-services/* endpoints require a Bearer JWT in the Authorization header.
 //
 //	@title          Modami Chat Service
 //	@version        1.0.0
@@ -16,8 +16,8 @@
 //
 //	@license.name   Private
 //
-//	@host       localhost:8080
-//	@BasePath   /api/v1
+//	@host       localhost:8090
+//	@BasePath   /v1/chat-services
 //
 //	@securityDefinitions.apikey BearerAuth
 //	@in                         header

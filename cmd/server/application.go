@@ -103,7 +103,7 @@ func NewApplication(ctx context.Context, cfg *config.Config, conn *Connections) 
 	// Authenticated routes
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.JWTAuth(authMW))
-		r.Route("/api/v1", func(r chi.Router) {
+		r.Route("/v1/chat-services", func(r chi.Router) {
 			chatHandler.RegisterRoutes(r)
 		})
 	})

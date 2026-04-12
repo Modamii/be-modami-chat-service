@@ -3,7 +3,12 @@ services:
     image: scylladb/scylla:6.2
     ports:
       - "9042:9042"
-    command: --smp 1 --memory 750M --overprovisioned 1 --developer-mode 1
+    command: >
+      --smp 1
+      --memory 512M
+      --overprovisioned 1
+      --developer-mode 1
+      --seeds scylladb
     volumes:
       - scylladb_data:/var/lib/scylla
     networks:

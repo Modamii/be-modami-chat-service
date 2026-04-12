@@ -20,13 +20,11 @@ app:
 
 scylladb:
   hosts:
-    - "192.168.97.14"
-    - "192.168.97.15"
-    - "192.168.97.16"
+    - "localhost"
   keyspace: "chat"
   num_conns: 2
-  datacenter: "dc1"
-  replication_factor: 3
+  datacenter: "datacenter1"
+  replication_factor: 1
 
 redis:
   host: "localhost"

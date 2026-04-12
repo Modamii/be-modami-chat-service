@@ -86,12 +86,20 @@ var tableStatements = []string{
 // It must be called against a session that has no default keyspace set.
 // datacenter is the ScyllaDB DC name; rf is the replication factor.
 func EnsureSchema(session *gocql.Session, datacenter string, rf int) error {
-	keyspaceDDL := fmt.Sprintf(
-		`CREATE KEYSPACE IF NOT EXISTS chat`+
-			` WITH replication = {'class': 'NetworkTopologyStrategy', '%s': %d}`+
-			` AND durable_writes = true`,
-		datacenter, rf,
-	)
+	var keyspaceDDL string
+	if rf == 1 {
+		// Single-node dev: SimpleStrategy avoids DC-name dependency.
+		keyspaceDDL = `CREATE KEYSPACE IF NOT EXISTS chat` +
+			` WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}` +
+			` AND durable_writes = true`
+	} else {
+		keyspaceDDL = fmt.Sprintf(
+			`CREATE KEYSPACE IF NOT EXISTS chat`+
+				` WITH replication = {'class': 'NetworkTopologyStrategy', '%s': %d}`+
+				` AND durable_writes = true`,
+			datacenter, rf,
+		)
+	}
 	if err := session.Query(keyspaceDDL).Exec(); err != nil {
 		return fmt.Errorf("create keyspace: %w", err)
 	}

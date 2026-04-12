@@ -32,12 +32,13 @@ type Connections struct {
 func NewConnections(ctx context.Context, cfg *config.Config) *Connections {
 	// ── ScyllaDB ────────────────────────────────────────────────────────────
 
+	consistency := scyllaConsistency(cfg.ScyllaDB.ReplicationFactor)
+	policy := scyllaPolicy(cfg.ScyllaDB.Datacenter, len(cfg.ScyllaDB.Hosts))
+
 	// Phase 1: keyspace-less session used only to run schema DDL.
 	initCluster := gocql.NewCluster(cfg.ScyllaDB.Hosts...)
-	initCluster.Consistency = gocql.LocalQuorum
-	initCluster.PoolConfig.HostSelectionPolicy = gocql.TokenAwareHostPolicy(
-		gocql.DCAwareRoundRobinPolicy(cfg.ScyllaDB.Datacenter),
-	)
+	initCluster.Consistency = consistency
+	initCluster.PoolConfig.HostSelectionPolicy = policy()
 	initSession, err := initCluster.CreateSession()
 	if err != nil {
 		logger.Error(ctx, "failed to connect to scylladb (init session)", err)
@@ -53,11 +54,9 @@ func NewConnections(ctx context.Context, cfg *config.Config) *Connections {
 	// Phase 2: production session bound to the chat keyspace.
 	cluster := gocql.NewCluster(cfg.ScyllaDB.Hosts...)
 	cluster.Keyspace = cfg.ScyllaDB.Keyspace
-	cluster.Consistency = gocql.LocalQuorum
+	cluster.Consistency = consistency
 	cluster.NumConns = cfg.ScyllaDB.NumConns
-	cluster.PoolConfig.HostSelectionPolicy = gocql.TokenAwareHostPolicy(
-		gocql.DCAwareRoundRobinPolicy(cfg.ScyllaDB.Datacenter),
-	)
+	cluster.PoolConfig.HostSelectionPolicy = policy()
 	session, err := cluster.CreateSession()
 	if err != nil {
 		logger.Error(ctx, "failed to connect to scylladb", err)
@@ -116,4 +115,25 @@ func (c *Connections) Close() {
 	c.ScyllaSession.Close()
 	c.RedisClient.Close()
 	c.KafkaService.Close()
+}
+
+// scyllaConsistency returns LocalQuorum for multi-replica clusters, LocalOne for single node.
+func scyllaConsistency(rf int) gocql.Consistency {
+	if rf > 1 {
+		return gocql.LocalQuorum
+	}
+	return gocql.LocalOne
+}
+
+// scyllaPolicy returns a factory for the host selection policy.
+// Multi-node clusters use token-aware DC-aware routing; single node uses round-robin.
+func scyllaPolicy(datacenter string, nodeCount int) func() gocql.HostSelectionPolicy {
+	if nodeCount > 1 {
+		return func() gocql.HostSelectionPolicy {
+			return gocql.TokenAwareHostPolicy(gocql.DCAwareRoundRobinPolicy(datacenter))
+		}
+	}
+	return func() gocql.HostSelectionPolicy {
+		return gocql.RoundRobinHostPolicy()
+	}
 }
