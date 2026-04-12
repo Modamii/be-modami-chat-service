@@ -11,8 +11,9 @@ type ProxyConnectRequest struct {
 	Transport string          `json:"transport"`
 	Protocol  string          `json:"protocol"`
 	Encoding  string          `json:"encoding"`
-	Data      json.RawMessage `json:"data,omitempty"` // custom data from client on connect
-	Name      string          `json:"name,omitempty"` // client SDK name
+	Token     string          `json:"token,omitempty"`  // JWT token when client sends token in connect command
+	Data      json.RawMessage `json:"data,omitempty"`   // custom data from client on connect
+	Name      string          `json:"name,omitempty"`   // client SDK name
 	Version   string          `json:"version,omitempty"`
 }
 

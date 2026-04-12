@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"be-modami-chat-service/internal/adapter/handler/middleware"
+	"be-modami-chat-service/internal/domain"
 	"be-modami-chat-service/internal/service"
 	pkgcentrifugo "be-modami-chat-service/pkg/centrifugo"
 
@@ -15,56 +15,17 @@ import (
 
 // CentrifugoProxy handles Centrifugo proxy HTTP callbacks.
 type CentrifugoProxy struct {
-	authMW  *middleware.AuthMiddleware
 	chatSvc *service.ChatService
 }
 
 // NewCentrifugoProxy creates a new Centrifugo proxy handler.
-func NewCentrifugoProxy(authMW *middleware.AuthMiddleware, chatSvc *service.ChatService) *CentrifugoProxy {
-	return &CentrifugoProxy{authMW: authMW, chatSvc: chatSvc}
-}
-
-// HandleConnect handles Centrifugo connect proxy requests.
-// Validates the Keycloak JWT token and returns the user ID (sub claim).
-func (p *CentrifugoProxy) HandleConnect(w http.ResponseWriter, r *http.Request) {
-	var req pkgcentrifugo.ProxyConnectRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		proxyError(w, pkgcentrifugo.ProxyErrorInternal, "invalid request")
-		return
-	}
-
-	// Extract token from connect data
-	var connectData struct {
-		Token string `json:"token"`
-	}
-	if req.Data != nil {
-		if err := json.Unmarshal(req.Data, &connectData); err != nil {
-			proxyError(w, pkgcentrifugo.ProxyErrorUnauthorized, "invalid connect data")
-			return
-		}
-	}
-
-	if connectData.Token == "" {
-		proxyError(w, pkgcentrifugo.ProxyErrorUnauthorized, "missing token")
-		return
-	}
-
-	sub, err := p.authMW.ParseToken(connectData.Token)
-	if err != nil {
-		proxyError(w, pkgcentrifugo.ProxyErrorUnauthorized, "invalid token")
-		return
-	}
-
-	writeProxyJSON(w, pkgcentrifugo.ProxyResponse{
-		Result: pkgcentrifugo.ProxyConnectResult{
-			User:     sub,
-			Channels: []string{"personal:notifications#" + sub},
-		},
-	})
+func NewCentrifugoProxy(chatSvc *service.ChatService) *CentrifugoProxy {
+	return &CentrifugoProxy{chatSvc: chatSvc}
 }
 
 // HandleSubscribe handles Centrifugo subscribe proxy requests.
 // Validates that the user has access to the requested channel.
+// The user ID is already set by noti-service's connect handler.
 func (p *CentrifugoProxy) HandleSubscribe(w http.ResponseWriter, r *http.Request) {
 	var req pkgcentrifugo.ProxySubscribeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -75,22 +36,9 @@ func (p *CentrifugoProxy) HandleSubscribe(w http.ResponseWriter, r *http.Request
 	userID := req.User
 	channel := req.Channel
 
-	// personal:notifications#<userID> — user can only subscribe to their own
-	if strings.HasPrefix(channel, "personal:notifications#") {
-		targetUser := strings.TrimPrefix(channel, "personal:notifications#")
-		if targetUser != userID {
-			proxyError(w, pkgcentrifugo.ProxyErrorForbidden, "forbidden")
-			return
-		}
-		writeProxyJSON(w, pkgcentrifugo.ProxyResponse{
-			Result: pkgcentrifugo.ProxySubscribeResult{},
-		})
-		return
-	}
-
-	// conversation:<id> — user must be a member
-	if strings.HasPrefix(channel, "conversation:") {
-		convID := strings.TrimPrefix(channel, "conversation:")
+	// chat:room:<conversationID> — user must be a member of the conversation
+	if strings.HasPrefix(channel, "chat:room:") {
+		convID := strings.TrimPrefix(channel, "chat:room:")
 		_, err := p.chatSvc.GetConversation(r.Context(), convID, userID)
 		if err != nil {
 			logger.Warn(r.Context(), "subscribe denied",
@@ -107,6 +55,62 @@ func (p *CentrifugoProxy) HandleSubscribe(w http.ResponseWriter, r *http.Request
 	}
 
 	proxyError(w, pkgcentrifugo.ProxyErrorForbidden, "unknown channel")
+}
+
+// HandlePublish handles Centrifugo publish proxy requests.
+// Receives a publish payload from a client, persists and broadcasts the message.
+func (p *CentrifugoProxy) HandlePublish(w http.ResponseWriter, r *http.Request) {
+	var req pkgcentrifugo.ProxyPublishRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		proxyError(w, pkgcentrifugo.ProxyErrorInternal, "invalid request")
+		return
+	}
+
+	userID := req.User
+	channel := req.Channel
+
+	if !strings.HasPrefix(channel, "chat:room:") {
+		proxyError(w, pkgcentrifugo.ProxyErrorForbidden, "unknown channel")
+		return
+	}
+
+	convID := strings.TrimPrefix(channel, "chat:room:")
+
+	var payload struct {
+		Type string `json:"type"`
+		Text string `json:"text"`
+	}
+	if err := json.Unmarshal(req.Data, &payload); err != nil {
+		proxyError(w, pkgcentrifugo.ProxyErrorInternal, "invalid payload")
+		return
+	}
+
+	msgType := domain.MessageTypeText
+	if payload.Type != "" {
+		msgType = domain.MessageType(payload.Type)
+	}
+
+	cmd := service.SendMessageCommand{
+		ConversationID: convID,
+		SenderID:       userID,
+		Type:           msgType,
+		Content: domain.MessageContent{
+			Text: payload.Text,
+		},
+	}
+
+	if _, err := p.chatSvc.SendMessage(r.Context(), cmd); err != nil {
+		logger.Error(r.Context(), "publish proxy: send message failed", err,
+			logging.String("user", userID),
+			logging.String("channel", channel),
+		)
+		proxyError(w, pkgcentrifugo.ProxyErrorInternal, "failed to send message")
+		return
+	}
+
+	writeProxyJSON(w, pkgcentrifugo.ProxyResponse{
+		Result: pkgcentrifugo.ProxyPublishResult{},
+	})
 }
 
 func proxyError(w http.ResponseWriter, code int, message string) {

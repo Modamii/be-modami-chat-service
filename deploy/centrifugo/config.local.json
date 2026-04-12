@@ -1,0 +1,40 @@
+{
+  "token_hmac_secret_key": "${CENTRIFUGO_HMAC_SECRET}",
+  "api_key": "${CENTRIFUGO_API_KEY}",
+  "admin": true,
+  "admin_password": "${CENTRIFUGO_ADMIN_PASSWORD}",
+  "admin_secret": "${CENTRIFUGO_ADMIN_SECRET}",
+  "allowed_origins": ["http://localhost:3000", "http://localhost:5173"],
+  "client_channel_limit": 128,
+  "log_level": "debug",
+
+  "namespaces": [
+    {
+      "name": "noti",
+      "presence": false,
+      "history_size": 20,
+      "history_ttl": "7d",
+      "recover": true,
+      "proxy_subscribe": true,
+      "proxy_subscribe_endpoint": "http://localhost:7072/centrifugo/subscribe",
+      "proxy_subscribe_timeout": "3s",
+      "proxy_publish": true,
+      "proxy_publish_endpoint": "http://localhost:7072/centrifugo/publish",
+      "proxy_publish_timeout": "3s"
+    },
+    {
+      "name": "chat",
+      "presence": true,
+      "join_leave": true,
+      "history_size": 100,
+      "history_ttl": "24h",
+      "recover": true,
+      "proxy_subscribe": true,
+      "proxy_subscribe_endpoint": "http://localhost:CHAT_GATEWAY_PORT/centrifugo/subscribe",
+      "proxy_subscribe_timeout": "3s",
+      "proxy_publish": true,
+      "proxy_publish_endpoint": "http://localhost:CHAT_GATEWAY_PORT/centrifugo/publish",
+      "proxy_publish_timeout": "3s"
+    }
+  ]
+}

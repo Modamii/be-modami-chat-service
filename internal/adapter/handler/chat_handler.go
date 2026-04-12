@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -14,6 +15,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"gitlab.com/lifegoeson-libs/pkg-gokit/apperror"
 	"gitlab.com/lifegoeson-libs/pkg-gokit/response"
+	logging "gitlab.com/lifegoeson-libs/pkg-logging"
+	"gitlab.com/lifegoeson-libs/pkg-logging/logger"
 )
 
 // Handler handles HTTP requests for the chat service.
@@ -676,6 +679,8 @@ func handleError(w http.ResponseWriter, err error) {
 		response.Err(w, apperror.New(apperror.CodeConflict, "group is full"))
 	case errors.Is(err, domain.ErrDuplicateMessage):
 		response.Err(w, apperror.New(apperror.CodeConflict, "duplicate message"))
+	case errors.Is(err, domain.ErrDuplicateConversation):
+		response.Err(w, apperror.New(apperror.CodeConflict, "conversation already exists"))
 	case errors.Is(err, domain.ErrReactionLimitReached):
 		response.Err(w, apperror.New(apperror.CodeConflict, "reaction limit reached"))
 	case errors.Is(err, domain.ErrMessageDeleted):
@@ -683,6 +688,7 @@ func handleError(w http.ResponseWriter, err error) {
 	case domain.IsValidationError(err):
 		response.Err(w, apperror.New(apperror.CodeBadRequest, err.Error()))
 	default:
+		logger.Error(context.Background(), "unhandled handler error", err, logging.String("error", err.Error()))
 		response.InternalError(w, "internal server error")
 	}
 }

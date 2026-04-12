@@ -22,7 +22,7 @@ type realtimeEvent struct {
 }
 
 func (p *Publisher) PublishToConversation(ctx context.Context, conversationID string, eventType string, data interface{}) error {
-	channel := "conversation:" + conversationID
+	channel := "chat:room:" + conversationID
 	payload := realtimeEvent{Type: eventType, Data: data}
 
 	encoded, err := json.Marshal(payload)
@@ -37,7 +37,7 @@ func (p *Publisher) PublishToConversation(ctx context.Context, conversationID st
 }
 
 func (p *Publisher) PublishToUser(ctx context.Context, userID string, eventType string, data interface{}) error {
-	channel := "personal:notifications#" + userID
+	channel := "noti:user:" + userID
 	payload := realtimeEvent{Type: eventType, Data: data}
 
 	encoded, err := json.Marshal(payload)

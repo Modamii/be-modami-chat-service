@@ -93,11 +93,12 @@ func NewApplication(ctx context.Context, cfg *config.Config, conn *Connections) 
 		httpswagger.URL("/swagger/doc.json"),
 	))
 
-	// Centrifugo proxy endpoints (called by Centrifugo internally)
-	centrifugoProxy := chathandler.NewCentrifugoProxy(authMW, chatService)
+	// Centrifugo proxy endpoints (called by Centrifugo internally).
+	// Connect proxy is owned by noti-service; chat-service only handles subscribe and publish.
+	centrifugoProxy := chathandler.NewCentrifugoProxy(chatService)
 	r.Route("/centrifugo/proxy", func(r chi.Router) {
-		r.Post("/connect", centrifugoProxy.HandleConnect)
 		r.Post("/subscribe", centrifugoProxy.HandleSubscribe)
+		r.Post("/publish", centrifugoProxy.HandlePublish)
 	})
 
 	// Authenticated routes

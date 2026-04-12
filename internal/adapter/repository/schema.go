@@ -89,14 +89,17 @@ func EnsureSchema(session *gocql.Session, datacenter string, rf int) error {
 	var keyspaceDDL string
 	if rf == 1 {
 		// Single-node dev: SimpleStrategy avoids DC-name dependency.
+		// Tablets are disabled because LWT (IF NOT EXISTS) is not supported with tablets in ScyllaDB 6.x.
 		keyspaceDDL = `CREATE KEYSPACE IF NOT EXISTS chat` +
 			` WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}` +
-			` AND durable_writes = true`
+			` AND durable_writes = true` +
+			` AND tablets = {'enabled': false}`
 	} else {
 		keyspaceDDL = fmt.Sprintf(
 			`CREATE KEYSPACE IF NOT EXISTS chat`+
 				` WITH replication = {'class': 'NetworkTopologyStrategy', '%s': %d}`+
-				` AND durable_writes = true`,
+				` AND durable_writes = true`+
+				` AND tablets = {'enabled': false}`,
 			datacenter, rf,
 		)
 	}

@@ -15,7 +15,17 @@
       "Bash(make build:*)",
       "Bash(ls:*)",
       "Bash(docker ps:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(lsof:*)",
+      "Bash(docker restart:*)",
+      "Bash(CONV_ID=\"bd2c480c80bc4ecbae2b06c02d276e7a\"\nJOHN_ID=\"5b831653-a71c-4f98-a13b-ab209e829ba1\"\nPHONG_ID=\"e7b207c0-0b41-47ae-be64-2e8308995a8e\"\n\necho \"=== Test Centrifugo proxy: subscribe \\(valid member\\) ===\"\ncurl -s -X POST \"http://localhost:8090/centrifugo/proxy/subscribe\" \\\\\n  -H \"Content-Type: application/json\" \\\\\n  -d \"{\\\\\"user\\\\\":\\\\\"$JOHN_ID\\\\\",\\\\\"channel\\\\\":\\\\\"chat:room:$CONV_ID\\\\\",\\\\\"client\\\\\":\\\\\"test-client-1\\\\\"}\" | python3 -m json.tool\n\necho \"\"\necho \"=== Test Centrifugo proxy: subscribe \\(non-member\\) ===\"\ncurl -s -X POST \"http://localhost:8090/centrifugo/proxy/subscribe\" \\\\\n  -H \"Content-Type: application/json\" \\\\\n  -d \"{\\\\\"user\\\\\":\\\\\"00000000-0000-0000-0000-000000000099\\\\\",\\\\\"channel\\\\\":\\\\\"chat:room:$CONV_ID\\\\\",\\\\\"client\\\\\":\\\\\"test-client-2\\\\\"}\" | python3 -m json.tool\n\necho \"\"\necho \"=== Test Centrifugo proxy: subscribe \\(unknown channel\\) ===\"\ncurl -s -X POST \"http://localhost:8090/centrifugo/proxy/subscribe\" \\\\\n  -H \"Content-Type: application/json\" \\\\\n  -d \"{\\\\\"user\\\\\":\\\\\"$JOHN_ID\\\\\",\\\\\"channel\\\\\":\\\\\"unknown:channel\\\\\",\\\\\"client\\\\\":\\\\\"test-client-3\\\\\"}\" | python3 -m json.tool)",
+      "Bash(python3:*)",
+      "Bash(which websocat:*)",
+      "Bash(cd:*)",
+      "Bash(mkdir:*)",
+      "Bash(docker stop:*)",
+      "Bash(sed:*)",
+      "Bash(for topic:*)"
     ]
   }
 }

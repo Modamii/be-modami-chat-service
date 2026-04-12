@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-worker-push
+  namespace: techinsight-notifications
+  labels:
+    app: notification-worker-push
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-worker-push
+  template:
+    metadata:
+      labels:
+        app: notification-worker-push
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: worker-push
+          image: notification-service/worker-push:latest
+          ports:
+            - containerPort: 7074
+              name: health
+          envFrom:
+            - configMapRef:
+                name: notification-config
+            - secretRef:
+                name: notification-secret
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10

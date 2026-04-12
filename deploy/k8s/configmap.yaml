@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notification-config
+  namespace: techinsight-notifications
+data:
+  APP_NAME: "notification-service"
+  APP_ENVIRONMENT: "production"
+  APP_DEBUG: "false"
+  DATABASE_MONGODB_DATABASE: "notifications"
+  CACHE_REDIS_DB: "0"
+  KAFKA_CONSUMER_GROUP_ID: "notification-service-group"
+  KAFKA_NOTIFICATION_TOPIC: "notification.events"
+  QUEUE_WS_KEY: "notif:ws"
+  QUEUE_PUSH_KEY: "notif:push"
+  SERVERS_API_ADDR: ":7070"
+  SERVERS_INGEST_ADDR: ":7071"
+  SERVERS_GATEWAY_ADDR: ":7072"
+  CENTRIFUGO_TOKEN_TTL: "3600"
