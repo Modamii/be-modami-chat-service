@@ -48,7 +48,7 @@ pipeline {
                         -v "$(pwd):/app" \
                         -w /app \
                         golangci/golangci-lint:latest \
-                        golangci-lint run --timeout 5m
+                        sh -c "go mod download && golangci-lint run --timeout 5m"
                 '''
             }
         }
