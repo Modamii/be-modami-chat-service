@@ -9,7 +9,7 @@ pipeline {
 
     options {
         buildDiscarder(logRotator(numToKeepStr: '10'))
-        timeout(time: 20, unit: 'MINUTES')
+        timeout(time: 30, unit: 'MINUTES')
         disableConcurrentBuilds()
     }
 
@@ -28,7 +28,56 @@ pipeline {
             }
         }
 
-        stage('Build & Push') {
+        stage('Secret Scan') {
+            steps {
+                sh '''
+                    docker run --rm \
+                        -v "$(pwd):/path" \
+                        zricethezav/gitleaks:latest detect \
+                        --source /path \
+                        --no-git \
+                        --exit-code 1
+                '''
+            }
+        }
+
+        stage('Lint') {
+            steps {
+                sh '''
+                    docker run --rm \
+                        -v "$(pwd):/app" \
+                        -w /app \
+                        golangci/golangci-lint:latest \
+                        golangci-lint run --timeout 5m
+                '''
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh '''
+                    docker run --rm \
+                        -v "$(pwd):/app" \
+                        -w /app \
+                        golang:1.24-alpine \
+                        go test ./... -coverprofile=coverage.out -covermode=atomic
+                '''
+            }
+        }
+
+        stage('Dependency Audit') {
+            steps {
+                sh '''
+                    docker run --rm \
+                        -v "$(pwd):/app" \
+                        -w /app \
+                        golang:1.24-alpine \
+                        sh -c "go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./..."
+                '''
+            }
+        }
+
+        stage('Build') {
             steps {
                 withCredentials([
                     usernamePassword(
@@ -55,10 +104,38 @@ pipeline {
                             -t "${FULL_IMAGE}:${IMAGE_TAG}" \
                             -t "${FULL_IMAGE}:latest" \
                             .
+                    '''
+                }
+            }
+        }
 
+        stage('Image Scan') {
+            steps {
+                sh '''
+                    docker run --rm \
+                        -v /var/run/docker.sock:/var/run/docker.sock \
+                        aquasec/trivy:latest image \
+                        --exit-code 1 \
+                        --severity HIGH,CRITICAL \
+                        --no-progress \
+                        "${FULL_IMAGE}:${IMAGE_TAG}"
+                '''
+            }
+        }
+
+        stage('Push') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                         docker push "${FULL_IMAGE}:${IMAGE_TAG}"
                         docker push "${FULL_IMAGE}:latest"
-
                         docker logout
                     '''
                 }
